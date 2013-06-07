@@ -21,9 +21,9 @@ cordova.define("cordova/plugin/BarcodeScanner",
             TEXT_TYPE: "TEXT_TYPE",
             EMAIL_TYPE: "EMAIL_TYPE",
             PHONE_TYPE: "PHONE_TYPE",
-            SMS_TYPE: "SMS_TYPE",
-            //  CONTACT_TYPE: "CONTACT_TYPE",  // TODO:  not implemented, requires passing a Bundle class from Javascript to Java
-            //  LOCATION_TYPE: "LOCATION_TYPE" // TODO:  not implemented, requires passing a Bundle class from Javascript to Java
+            SMS_TYPE: "SMS_TYPE"
+            //,  CONTACT_TYPE: "CONTACT_TYPE",  // TODO:  not implemented, requires passing a Bundle class from Javascript to Java
+            //,  LOCATION_TYPE: "LOCATION_TYPE" // TODO:  not implemented, requires passing a Bundle class from Javascript to Java
         };
 
         //-------------------------------------------------------------------
@@ -43,7 +43,8 @@ cordova.define("cordova/plugin/BarcodeScanner",
                 return
             }
 
-            exec(successCallback, errorCallback, 'BarcodeScanner', 'scan', []);
+            var result = exec(successCallback, errorCallback, 'BarcodeScanner', 'scan', []);
+            console.log("BarcodeScanner result="+result);
         };
 
         //-------------------------------------------------------------------
