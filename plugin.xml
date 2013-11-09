@@ -48,7 +48,7 @@
         </config-file>
 		
 		<source-file src="src/wp/BarcodeScanner.cs" />	
-		<source-file src="src/wp/Result.cs" />	
+		<source-file src="src/wp/BarcodeScannerResult.cs" />	
 		<source-file src="src/wp/Scan.xaml.cs" />	
 		<source-file src="src/wp/Scan.xaml" />	
 	</platform>
@@ -61,7 +61,7 @@
         </config-file>
 		
 		<source-file src="src/wp/BarcodeScanner.cs" />	
-		<source-file src="src/wp/Result.cs" />	
+		<source-file src="src/wp/BarcodeScannerResult.cs" />	
 		<source-file src="src/wp/Scan.xaml.cs" />	
 		<source-file src="src/wp/Scan.xaml" />	
 	</platform>
