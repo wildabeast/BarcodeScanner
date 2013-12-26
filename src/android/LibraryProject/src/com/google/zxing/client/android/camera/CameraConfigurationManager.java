@@ -118,7 +118,12 @@ final class CameraConfigurationManager {
       parameters.setFocusMode(focusMode);
     }
 
-    parameters.setPreviewSize(cameraResolution.x, cameraResolution.y);
+    if(android.os.Build.MODEL.contains("Glass")) {
+      parameters.setPreviewFpsRange(30000, 30000);
+      parameters.setPreviewSize(640, 360);
+    } else {
+      parameters.setPreviewSize(cameraResolution.x, cameraResolution.y);
+    }
     camera.setParameters(parameters);
   }
 
