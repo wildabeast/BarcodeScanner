@@ -15,6 +15,14 @@
         <clobbers target="cordova.plugins.barcodeScanner" />
     </js-module>
 
+    <!-- windows8 -->
+    <platform name="windows8">
+        <js-module src="src/windows8/ScannerProxy.js" name="ScannerProxy">
+            <merges target="" />
+        </js-module>
+        <framework src="src/windows8/ZXing.winmd" custom="true"/>
+    </platform>
+
     <!-- ios -->
     <platform name="ios">
         <!-- Cordova >= 2.8 -->
