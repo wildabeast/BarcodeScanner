@@ -20,6 +20,9 @@
         <js-module src="src/windows8/ScannerProxy.js" name="ScannerProxy">
             <merges target="" />
         </js-module>
+        <js-module src="src/windows8/CameraHandler.js" name="CameraHandler">
+            <merges target="" />
+        </js-module>        
         <framework src="src/windows8/ZXing.winmd" custom="true"/>
     </platform>
 
