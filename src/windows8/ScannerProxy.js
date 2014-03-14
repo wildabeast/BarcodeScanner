@@ -7,7 +7,7 @@
  * Copyright (c) 2014, Tlantic
  */
 
- var scanner = require('CameraHandler');
+ var scanner = require('com.phonegap.plugins.barcodescanner.CameraHandler');
 
  module.exports = {
 	scan:function(win, fail) {
