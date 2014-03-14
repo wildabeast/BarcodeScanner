@@ -15,6 +15,7 @@
 
 		try {
 			scanner.initCamera();
+			win('log');
 		} catch(e) {
 			fail(e);
 		} finally {

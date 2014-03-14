@@ -38,7 +38,7 @@ exports.initCamera = function () {
 
 	// adding preview element into DOM tree
 	previewPanel = this.createCameraElm();
-	document.body.append(previewPanel);
+	document.body.appendChild(previewPanel);
 };
 
  require('cordova/windows8/commandProxy').add('CameraHandler', exports);
