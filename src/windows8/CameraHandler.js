@@ -1,4 +1,4 @@
-/*global exports, Windows, ZXing */
+/*global exports, Windows, ZXing, require, module */
 
 /**
  * cordova is available under *either* the terms of the modified BSD license *or* the
@@ -40,3 +40,5 @@ exports.initCamera = function () {
 	previewPanel = this.createCameraElm();
 	document.body.append(previewPanel);
 };
+
+ require('cordova/windows8/commandProxy').add('CameraHandler', module.exports);
