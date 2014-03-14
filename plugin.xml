@@ -24,6 +24,12 @@
             <merges target="" />
         </js-module>     
         <framework src="src/windows8/ZXing.winmd" custom="true"/>
+        
+        <config-file target="package.appxmanifest" parent="/Package/Capabilities">
+            <Capability Name="internetClient" />
+            <DeviceCapability Name="webcam" />
+            <DeviceCapability Name="microphone" />
+        </config-file>
     </platform>
 
     <!-- ios -->
