@@ -22,11 +22,10 @@ try {
 	scan:function(win, fail) {
 		'use strict';
 
-		try {
-			
+	    try {
+	        scanner.start(win);
 		} catch(e) {
 			fail(e);
-		} finally {
 		}
 	}
 
