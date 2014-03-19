@@ -1,4 +1,4 @@
-/*global exports, Windows, ZXing, require */
+/*global exports, Windows, ZXing, require, console */
 
 /**
  * cordova is available under *either* the terms of the modified BSD license *or* the
@@ -17,6 +17,8 @@ var Capture = Windows.Media.Capture,
 exports.createCameraElm = function () {
 	'use strict';
 
+	console.log('Creating camera element...');
+
 	var elm = document.createElement('video');
 	
 	elm.style.position = 'absolute';
@@ -31,6 +33,7 @@ exports.createCameraElm = function () {
 
 exports.initCamera = function () {
 	'use strict';
+	console.log('Configuring image sampler...');
 
 	// preparing camera preview
 	reader = new ZXing.BarcodeReader();
