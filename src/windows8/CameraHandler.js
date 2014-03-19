@@ -21,6 +21,7 @@
 
     // decoding barcode
     function readCode(decoder, pixels, format) {
+        'use strict';
         var result = reader.decode(pixels, decoder.pixelWidth, decoder.pixelHeight, format);
         
         if (result) {
@@ -33,6 +34,7 @@
 
     // decode bitmap stream
     function decodeBitmapStream(decoder, rawPixels) {
+        'use strict';
         var pixels, format, pixelBuffer_U8;
 
         switch (decoder.bitmapPixelFormat) {
@@ -48,6 +50,7 @@
 
                 // defining image format
                 format = (decoder.bitmapAlphaMode === Windows.Graphics.Imaging.BitmapAlphaMode.straight ? ZXing.BitmapFormat.rgba32 : ZXing.BitmapFormat.rgb32);
+                break;
 
                 // RGBA 8
             case Windows.Graphics.Imaging.BitmapPixelFormat.rgba8:
@@ -56,6 +59,7 @@
 
                 // defining image format
                 format = (decoder.bitmapAlphaMode === Windows.Graphics.Imaging.BitmapAlphaMode.straight ? ZXing.BitmapFormat.rgba32 : ZXing.BitmapFormat.rgb32);
+                break;
 
                 // BGRA 8
             case Windows.Graphics.Imaging.BitmapPixelFormat.bgra8:
@@ -72,6 +76,7 @@
 
     // load stream creating a decoder
     function loadStream() {
+        'use strict';
         Windows.Graphics.Imaging.BitmapDecoder.createAsync(memoryBuffer).done(function onDone(decoder) {
             if (decoder) {
                 decoder.getPixelDataAsync().then(
@@ -89,39 +94,43 @@
                 throw new Error('Unable to load camera image');
             }
         });
-    };
+    }
 
     // gets current preview image frame
    function flick() {
+    'use strict';
        var photoProperties = Windows.Media.MediaProperties.ImageEncodingProperties.createJpeg();
             memoryBuffer = new Windows.Storage.Streams.InMemoryRandomAccessStream();
 
         sampler.capturePhotoToStreamAsync(photoProperties, memoryBuffer).done(loadStream);
-    };
+    }
 
     // triggers camera image gathering process
     function render() {
-
+        'use strict';
         if (!stopped) {
             flick();
         }
-    };
+    }
 
     // dispose camera element
     function dispose() {
+        'use strict';
         previewPanel.style.display = 'none';
         previewPanel.pause();
-        previewPanel.src = "";
+        previewPanel.src = '';
         stopped = true;
-    };
+    }
 
 
     exports.stop = function () {
+        'use strict';
         dispose();
         hook({ cancelled: true });
     };
 
     exports.start = function (callback) {
+        'use strict';
         hook = callback;
         previewPanel.style.display = 'block';
     previewPanel.src = URL.createObjectURL(sampler);

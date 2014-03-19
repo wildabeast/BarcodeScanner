@@ -6,7 +6,7 @@
  * Copyright (c) Vinicius Linck 2014
  * Copyright (c) 2014, Tlantic
  */
-
+ 
 var scanner = require('com.phonegap.plugins.barcodescanner.CameraHandler'),
 	initialized = false;
 
@@ -27,6 +27,12 @@ try {
 		} catch(e) {
 			fail(e);
 		}
+	},
+
+	encode:function(win,fail) {
+		'use strict';
+
+		fail('Not implemented');
 	}
 
  };
