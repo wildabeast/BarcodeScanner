@@ -1,4 +1,4 @@
-/**
+cordova.define("com.phonegap.plugins.barcodescanner.BarcodeScanner", function(require, exports, module) { /**
  * cordova is available under *either* the terms of the modified BSD license *or* the
  * MIT License (2008). See http://opensource.org/licenses/alphabetical for full text.
  *
@@ -41,7 +41,7 @@
          *    }
          * @param {Function} errorCallback
          */
-        BarcodeScanner.prototype.scan = function (successCallback, errorCallback) {
+        BarcodeScanner.prototype.scan = function (successCallback, errorCallback, options) {
             if (errorCallback == null) {
                 errorCallback = function () {
                 };
@@ -57,7 +57,7 @@
                 return;
             }
 
-            exec(successCallback, errorCallback, 'BarcodeScanner', 'scan', []);
+            exec(successCallback, errorCallback, 'BarcodeScanner', 'scan', options);
         };
 
         //-------------------------------------------------------------------
@@ -85,3 +85,5 @@
         var barcodeScanner = new BarcodeScanner();
         module.exports = barcodeScanner;
 
+
+});
