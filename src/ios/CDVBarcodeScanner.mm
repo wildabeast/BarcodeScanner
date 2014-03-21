@@ -59,15 +59,16 @@
 @property (nonatomic, retain) CDVBarcodeScanner*           plugin;
 @property (nonatomic, retain) NSString*                   callback;
 @property (nonatomic, retain) UIViewController*           parentViewController;
-@property (nonatomic, retain) CDVbcsViewController*        viewController;
+@property (nonatomic, retain) CDVbcsViewController*       viewController;
 @property (nonatomic, retain) AVCaptureSession*           captureSession;
 @property (nonatomic, retain) AVCaptureVideoPreviewLayer* previewLayer;
 @property (nonatomic, retain) NSString*                   alternateXib;
+@property (nonatomic)         CGFloat                    effectiveScale;
 @property (nonatomic)         BOOL                        is1D;
 @property (nonatomic)         BOOL                        is2D;
 @property (nonatomic)         BOOL                        capturing;
 
-- (id)initWithPlugin:(CDVBarcodeScanner*)plugin callback:(NSString*)callback parentViewController:(UIViewController*)parentViewController alterateOverlayXib:(NSString *)alternateXib;
+- (id)initWithPlugin:(CDVBarcodeScanner*)plugin callback:(NSString*)callback parentViewController:(UIViewController*)parentViewController alterateOverlayXib:(NSString *)alternateXib alterateZoomValue:(CGFloat)effectiveScale;
 - (void)scanBarcode;
 - (void)barcodeScanSucceeded:(NSString*)text format:(NSString*)format;
 - (void)barcodeScanFailed:(NSString*)message;
@@ -126,13 +127,25 @@
     NSString*       capabilityError;
     
     callback = command.callbackId;
-    
-    // We allow the user to define an alternate xib file for loading the overlay. 
-    NSString *overlayXib = nil;
+  
+    // We allow the user to define a custom zoom into for the acquisition.
+    NSString *zoomLiteral = nil;
+    CGFloat zoom = 1.0;
     if ( [command.arguments count] >= 1 )
     {
-        overlayXib = [command.arguments objectAtIndex:0];
+        zoomLiteral = [command.arguments objectAtIndex:0];
+        zoom = [zoomLiteral floatValue];
+        
     }
+    // We allow the user to define an alternate xib file for loading the overlay
+    NSString *overlayXib = nil;
+    if ( [command.arguments count] >= 2 )
+    {
+        overlayXib = [command.arguments objectAtIndex:1];
+    }
+  
+    NSLog(@" print zoomLiteral %@", zoomLiteral);
+    NSLog(@" print overlayXib %@", overlayXib);
     
     capabilityError = [self isScanNotPossible];
     if (capabilityError) {
@@ -145,6 +158,7 @@
                  callback:callback
                  parentViewController:self.viewController
                  alterateOverlayXib:overlayXib
+                 alterateZoomValue:zoom
                  ];
     
     // queue [processor scanBarcode] to run on the event loop
@@ -204,18 +218,21 @@
 @synthesize is1D                 = _is1D;
 @synthesize is2D                 = _is2D;
 @synthesize capturing            = _capturing;
+@synthesize effectiveScale       = _effectiveScale;
 
 //--------------------------------------------------------------------------
 - (id)initWithPlugin:(CDVBarcodeScanner*)plugin
             callback:(NSString*)callback
 parentViewController:(UIViewController*)parentViewController
-  alterateOverlayXib:(NSString *)alternateXib {
+  alterateOverlayXib:(NSString *)alternateXib
+   alterateZoomValue:(CGFloat)effectiveScale {
     self = [super init];
     if (!self) return self;
     
     self.plugin               = plugin;
     self.callback             = callback;
     self.parentViewController = parentViewController;
+    self.effectiveScale       = effectiveScale;
     self.alternateXib         = alternateXib;
     
     self.is1D      = YES;
@@ -223,6 +240,7 @@ parentViewController:(UIViewController*)parentViewController
     self.capturing = NO;
     
     return self;
+  
 }
 
 //--------------------------------------------------------------------------
@@ -234,6 +252,7 @@ parentViewController:(UIViewController*)parentViewController
     self.captureSession = nil;
     self.previewLayer = nil;
     self.alternateXib = nil;
+    self.effectiveScale = nil;
     
     self.capturing = NO;
     
@@ -273,7 +292,7 @@ parentViewController:(UIViewController*)parentViewController
     // viewcontroller holding onto a reference to us, release them so they
     // will release us
     self.viewController = nil;
-    
+  
     // delayed [self release];
     [self performSelector:@selector(release) withObject:nil afterDelay:1];
 }
@@ -321,13 +340,29 @@ parentViewController:(UIViewController*)parentViewController
     output.videoSettings = videoOutputSettings;
     
     [output setSampleBufferDelegate:self queue:dispatch_get_main_queue()];
+  
+    // Fallback to get the highest supported resolution
+    if([captureSession canSetSessionPreset:AVCaptureSessionPresetHigh]){
     
-    if (![captureSession canSetSessionPreset:AVCaptureSessionPresetMedium]) {
-        return @"unable to preset medium quality video capture";
+        [captureSession setSessionPreset:AVCaptureSessionPresetHigh];
+        NSLog(@"AVCaptureSessionPresetHigh!");
+     
+    }else if([captureSession canSetSessionPreset:AVCaptureSessionPresetMedium]){
+    
+        [captureSession setSessionPreset:AVCaptureSessionPresetMedium];
+        NSLog(@"AVCaptureSessionPresetMedium!");
+      
+    }else if([captureSession canSetSessionPreset:AVCaptureSessionPresetLow]){
+    
+        [captureSession setSessionPreset:AVCaptureSessionPresetLow];    
+        NSLog(@"AVCaptureSessionPresetLow!");
+      
+    }else{
+    
+        return @"unable to preset medium quality video capture";    
+    
     }
-    
-    captureSession.sessionPreset = AVCaptureSessionPresetMedium;
-    
+  
     if ([captureSession canAddInput:input]) {
         [captureSession addInput:input];
     }
@@ -344,10 +379,11 @@ parentViewController:(UIViewController*)parentViewController
     
     // setup capture preview layer
     self.previewLayer = [AVCaptureVideoPreviewLayer layerWithSession:captureSession];
-    
+  
     // run on next event loop pass [captureSession startRunning]
     [captureSession performSelector:@selector(startRunning) withObject:nil afterDelay:0];
-    
+  
+  
     return nil;
 }
 
@@ -378,8 +414,34 @@ parentViewController:(UIViewController*)parentViewController
     
     //         [self dumpImage: [[self getImageFromSample:sampleBuffer] autorelease]];
 #endif
-    
-    
+  
+    CGFloat effectiveScale = self.effectiveScale;
+  
+    // Check the scale is in the allowed range
+    if (effectiveScale < 1.0)
+        effectiveScale = 1.0;
+  
+    try {
+  
+      // Apply here the scale passed to the plugin by value
+      [CATransaction begin];
+      [CATransaction setAnimationDuration:.025];
+      [self.previewLayer setAffineTransform:CGAffineTransformMakeScale(effectiveScale, effectiveScale)];
+      [CATransaction commit];
+
+    } catch (NSException * e) {
+  
+      [self.previewLayer setAffineTransform:CGAffineTransformMakeScale(1.0, 1.0)];
+      NSLog(@"Max zoom value reached, rest to the default value!");
+  
+    }
+  
+    // Apply here the scale passed to the plugin by value
+    [CATransaction begin];
+    [CATransaction setAnimationDuration:.025];
+    [self.previewLayer setAffineTransform:CGAffineTransformMakeScale(self.effectiveScale, self.effectiveScale)];
+    [CATransaction commit];
+  
     using namespace zxing;
     
     // LuminanceSource is pretty dumb; we have to give it a pointer to
@@ -606,6 +668,7 @@ parentViewController:(UIViewController*)parentViewController
 @synthesize alternateXib   = _alternateXib;
 @synthesize overlayView    = _overlayView;
 
+
 //--------------------------------------------------------------------------
 - (id)initWithProcessor:(CDVbcsProcessor*)processor alternateOverlay:(NSString *)alternateXib {
     self = [super init];
@@ -636,11 +699,21 @@ parentViewController:(UIViewController*)parentViewController
     AVCaptureVideoPreviewLayer* previewLayer = self.processor.previewLayer;
     previewLayer.frame = self.view.bounds;
     previewLayer.videoGravity = AVLayerVideoGravityResizeAspectFill;
-    
-    if ([previewLayer isOrientationSupported]) {
-        [previewLayer setOrientation:AVCaptureVideoOrientationPortrait];
+  
+    if([[previewLayer connection] isVideoOrientationSupported]){
+  
+        [[previewLayer connection] setVideoOrientation: AVCaptureVideoOrientationPortrait];
+      
     }
-    
+  
+    // Added support for stabilizer
+    if([[previewLayer connection] isVideoStabilizationSupported]){
+      
+      [previewLayer connection].enablesVideoStabilizationWhenAvailable = YES;
+      NSLog(@"Video stabilization activated");
+      
+    }
+  
     [self.view.layer insertSublayer:previewLayer below:[[self.view.layer sublayers] objectAtIndex:0]];
     
     [self.view addSubview:[self buildOverlayView]];
