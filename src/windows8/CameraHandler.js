@@ -26,6 +26,7 @@ cordova.define("com.phonegap.plugins.barcodescanner.CameraHandler", function (re
             dispose();
             hook(result);
         } else {
+            // scan images every 1,5 seconds and reduces flick occurrences.
             window.setTimeout(function () {
                 window.requestAnimationFrame(render);
             }, 1500);
