@@ -15,6 +15,23 @@
         <clobbers target="cordova.plugins.barcodeScanner" />
     </js-module>
 
+    <!-- windows8 -->
+    <platform name="windows8">
+        <js-module src="src/windows8/CameraHandler.js" name="CameraHandler">
+            <merges target="" />
+        </js-module>           
+        <js-module src="src/windows8/ScannerProxy.js" name="ScannerProxy">
+            <merges target="" />
+        </js-module>     
+        <framework src="src/windows8/ZXing.winmd" custom="true"/>
+        
+        <config-file target="package.appxmanifest" parent="/Package/Capabilities">
+            <Capability Name="internetClient" />
+            <DeviceCapability Name="webcam" />
+            <DeviceCapability Name="microphone" />
+        </config-file>
+    </platform>
+
     <!-- ios -->
     <platform name="ios">
         <!-- Cordova >= 2.8 -->
