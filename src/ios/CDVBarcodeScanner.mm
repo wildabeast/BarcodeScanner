@@ -295,7 +295,27 @@ parentViewController:(UIViewController*)parentViewController
     [self barcodeScanDone];
     [self.plugin returnSuccess:@"" format:@"" cancelled:TRUE callback:self.callback];
 }
+//--------------------------------------------------------------------------
+- (void) autoFocus{
+    NSError* error = nil;
+    NSArray *devices = [AVCaptureDevice devices];
+    
+    for (AVCaptureDevice *device in devices) {
+        if ([device position] == AVCaptureDevicePositionBack) {
+            [device lockForConfiguration:&error];
+            if ([device isFocusModeSupported:AVCaptureFocusModeContinuousAutoFocus])
+            {
+                CGPoint autofocusPoint = CGPointMake(0.5f, 0.5f);
+                [device setFocusPointOfInterest:autofocusPoint];
+                [device setFocusMode:AVCaptureFocusModeContinuousAutoFocus];
+            }
+            
+            [device unlockForConfiguration];
+        }
+    }
 
+    [NSThread sleepForTimeInterval:1.0f];
+}
 //--------------------------------------------------------------------------
 - (NSString*)setUpCaptureSession {
     NSError* error = nil;
@@ -388,7 +408,7 @@ parentViewController:(UIViewController*)parentViewController
     uint8_t* imageBytes;
     
     //        NSTimeInterval timeStart = [NSDate timeIntervalSinceReferenceDate];
-    
+    [self autoFocus];
     try {
         DecodeHints decodeHints;
         decodeHints.addFormat(BarcodeFormat_QR_CODE);
