@@ -10,6 +10,8 @@
 #import <UIKit/UIKit.h>
 #import <AVFoundation/AVFoundation.h>
 #import <AssetsLibrary/AssetsLibrary.h>
+// MaxM
+#import <Accelerate/Accelerate.h>
 
 //------------------------------------------------------------------------------
 // use the all-in-one version of zxing that we built
@@ -28,6 +30,48 @@
 - (NSUInteger)supportedInterfaceOrientations;
 - (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation;
 - (BOOL)shouldAutorotate;
+
+@end
+
+//CGFloat degreesToRadians(CGFloat degrees) {return degrees * M_PI / 180;};
+//CGFloat radiansToDegrees(CGFloat radians) {return radians * 180/M_PI;};
+CGFloat DegreesToRadians(CGFloat degrees) {return degrees * M_PI / 180;};
+
+@interface UIImage (RotationMethods)
+- (UIImage *)imageRotatedByDegrees:(CGFloat)degrees;
+@end
+
+@implementation UIImage (RotationMethods)
+
+- (UIImage *)imageRotatedByDegrees:(CGFloat)degrees
+{
+	// calculate the size of the rotated view's containing box for our drawing space
+	UIView *rotatedViewBox = [[UIView alloc] initWithFrame:CGRectMake(0,0,self.size.width, self.size.height)];
+	CGAffineTransform t = CGAffineTransformMakeRotation(DegreesToRadians(degrees));
+	rotatedViewBox.transform = t;
+	CGSize rotatedSize = rotatedViewBox.frame.size;
+	[rotatedViewBox release];
+	
+	// Create the bitmap context
+	UIGraphicsBeginImageContext(rotatedSize); // NOT THREAD SAVE !
+	CGContextRef bitmap = UIGraphicsGetCurrentContext();
+	
+	// Move the origin to the middle of the image so we will rotate and scale around the center.
+	CGContextTranslateCTM(bitmap, rotatedSize.width/2, rotatedSize.height/2);
+	
+	//   // Rotate the image context
+	CGContextRotateCTM(bitmap, DegreesToRadians(degrees));
+	
+	// Now, draw the rotated/scaled image into the context
+	CGContextScaleCTM(bitmap, 1.0, -1.0);
+	CGContextDrawImage(bitmap, CGRectMake(-self.size.width / 2, -self.size.height / 2, self.size.width, self.size.height), [self CGImage]);
+	
+	UIImage *newImage = UIGraphicsGetImageFromCurrentImageContext();
+	UIGraphicsEndImageContext();
+    
+	return newImage;
+	
+}
 
 @end
 
@@ -339,8 +383,8 @@ parentViewController:(UIViewController*)parentViewController
         if (!device) return @"unable to obtain video capture device";
         
     }
+
     
-   
     AVCaptureDeviceInput* input = [AVCaptureDeviceInput deviceInputWithDevice:device error:&error];
     if (!input) return @"unable to obtain video capture device input";
     
@@ -393,11 +437,6 @@ parentViewController:(UIViewController*)parentViewController
     
     if (!self.capturing) return;
     
-    // Important: set orientation of AVCaptureCOnnection to that of the device
-    if ([connection isVideoOrientationSupported]) {
-        [connection setVideoOrientation:[[UIDevice currentDevice] orientation]];
-    }
-    
 #if USE_SHUTTER
     if (!self.viewController.shutterPressed) return;
     self.viewController.shutterPressed = NO;
@@ -423,6 +462,7 @@ parentViewController:(UIViewController*)parentViewController
     //NSString *javascript = @"CanvasCamera.capture('');";
     //[self.plugin.webView performSelectorOnMainThread:@selector(stringByEvaluatingJavaScriptFromString:) withObject:javascript waitUntilDone:YES];
    
+    
     using namespace zxing;
     
     // LuminanceSource is pretty dumb; we have to give it a pointer to
@@ -460,14 +500,24 @@ parentViewController:(UIViewController*)parentViewController
         NSString*   resultString = [[[NSString alloc] initWithCString:cString encoding:NSUTF8StringEncoding] autorelease];
         
         //DEBUG: Dump succeeded image to Photos
-        //UIImage *image= [[self getImageFromSample:sampleBuffer] autorelease];
-        //[self dumpImage: image];
+        UIImage *imageDump = [[self getImageFromSample:sampleBuffer orientation:UIInterfaceOrientationPortrait] autorelease];
+        [self dumpImage: imageDump];
+        
+        NSLog(@"Executing javascript: %@", captureOutput.connections[0]);
 
         // Write base64 to Javascript
-        UIImage *image= [[self getImageFromSample:sampleBuffer] autorelease];
+        UIImage *image= [[self getImageFromSample:sampleBuffer orientation:UIInterfaceOrientationPortrait] autorelease];
         NSString *imageBase64 = @"data:image/jpeg;base64,";
         imageBase64 = [imageBase64 stringByAppendingString:[UIImagePNGRepresentation(image) base64EncodedStringWithOptions:NSDataBase64Encoding64CharacterLineLength]];
         
+        // DEVELOPMENT idea 1: Write base64 image directly to DOM element
+        //NSString *javascript = @"document.getElementById('camera').src = '";
+        //javascript = [javascript stringByAppendingString:imageBase64];
+        //javascript = [javascript stringByAppendingString:@"';"];       
+        //NSLog(@"Executing javascript: %@", javascript);
+        //[self.plugin.webView writeJavascript:javascript];
+        //[self.plugin.webView performSelectorOnMainThread:@selector(stringByEvaluatingJavaScriptFromString:) withObject:javascript waitUntilDone:YES];
+
         [self barcodeScanSucceeded:resultString format:format scanImage:imageBase64];
         
     }
@@ -597,7 +647,24 @@ parentViewController:(UIViewController*)parentViewController
 // for debugging
 //--------------------------------------------------------------------------
 - (UIImage*)getImageFromSample:(CMSampleBufferRef)sampleBuffer {
+    UIInterfaceOrientation initialOrientation = UIInterfaceOrientationPortrait;
+    
+    return [self getImageFromSample:sampleBuffer orientation:initialOrientation];
+}
+#define radians(degrees) (degrees * M_PI/180)
+- (UIImage*)getImageFromSample:(CMSampleBufferRef)sampleBuffer orientation:(UIInterfaceOrientation)orientation {
+    //UIInterfaceOrientation initialOrientation = UIInterfaceOrientationPortrait;
 
+    // Rotate sampleBuffer if necessary
+    //sampleBuffer = [self rotateBuffer:sampleBuffer];
+    
+    // 2. Rotate Buffer Versuch
+    //sampleBuffer = [self rotateBuffer:sampleBuffer];
+    
+    // Bringt zwar Hochkant Bild aber mit Seltsamen Pixeln
+    //UIImage*   imageTest = [self imageFromSampleBuffer:sampleBuffer];
+    
+    
     CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
     CVPixelBufferLockBaseAddress(imageBuffer, 0);
     
@@ -619,9 +686,59 @@ parentViewController:(UIViewController*)parentViewController
                                                  colorSpace,
                                                  kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst
                                                  );
+
+    
+    // Rotate context
+    //CGContextRotateCTM (context, radians(90));
+    //CGContextTranslateCTM (context, 0, -height);
     
     CGImageRef cgImage = CGBitmapContextCreateImage(context);
+    //CGContextDrawImage(context, CGRectMake(0, 0, height, width), cgImage);
+	//CGImageRef ref = CGBitmapContextCreateImage(context);
+	//UIImage* image = [UIImage imageWithCGImage:cgImage];
+       
+    
+    
+    // Apple method extracted
+	// Move the origin to the middle of the image so we will rotate and scale around the center.
+	//CGContextTranslateCTM(context, height/2, width/2); // rotatedSize.width/2, rotatedSize.height/2
+	
+	//   // Rotate the image context
+	//CGContextRotateCTM(context, DegreesToRadians(90.0));
+	
+	// Now, draw the rotated/scaled image into the context
+	//CGContextScaleCTM(context, 1.0, -1.0);
+    
+    //CGImageRef cgImage = CGBitmapContextCreateImage(context);
+
+	//CGContextDrawImage(context, CGRectMake(-width / 2, -height / 2, width, height), cgImage);
+    
+    
+    
+    
+    
+    
+    
+    
+    //CGImageRef cgImage = CGBitmapContextCreateImage(context);
     UIImage*   image   = [[UIImage alloc] initWithCGImage:cgImage];
+    
+    
+    // Dreht!!! und ARC Probleme
+    //image = [self scaleAndRotateImage:image];
+
+    
+    
+    
+    
+    
+    
+    
+    // Apple method
+    //image = [image imageRotatedByDegrees:90.0];
+    
+    //UIImage*   image = [[UIImage alloc] imageWithCGImage:cgImage scale:1.0 orientation:UIImageOrientationRight];
+    //UIImage * image = [[UIImage imageWithCGImage:cgImage scale:1.0 orientation:UIImageOrientationUp] retain];
     
     CVPixelBufferUnlockBaseAddress(imageBuffer,0);
     CGContextRelease(context);
@@ -631,6 +748,233 @@ parentViewController:(UIViewController*)parentViewController
     free(baseAddress);
     
     return image;
+}
+
+
+
+- (UIImage *) imageFromSampleBuffer:(CMSampleBufferRef) sampleBuffer
+{
+    CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
+    CVPixelBufferLockBaseAddress(imageBuffer, 0);
+    
+    void *baseAddress = CVPixelBufferGetBaseAddress(imageBuffer);
+    
+    size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
+    size_t width = CVPixelBufferGetWidth(imageBuffer);
+    size_t height = CVPixelBufferGetHeight(imageBuffer);
+    
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    
+    CGContextRef context = CGBitmapContextCreate(baseAddress, height, width, 8,
+                                                 bytesPerRow, colorSpace, kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst);
+    
+    CGImageRef quartzImage = CGBitmapContextCreateImage(context);
+    CVPixelBufferUnlockBaseAddress(imageBuffer,0);
+    
+    CGContextRelease(context);
+    CGColorSpaceRelease(colorSpace);
+    
+    // From SO
+    //UIImage *image = [UIImage imageWithCGImage:quartzImage];
+    
+    int frontCameraImageOrientation = UIImageOrientationLeftMirrored;
+    //int backCameraImageOrientation = UIImageOrientationRight;
+    
+    UIImage *image = [[UIImage alloc] initWithCGImage:quartzImage scale:(CGFloat)1.0 orientation:frontCameraImageOrientation];
+    
+    CGImageRelease(quartzImage);
+    
+    return (image);
+}
+
+
+
+- (UIImage *)scaleAndRotateImage:(UIImage *)image
+{
+    int kMaxResolution = 640;
+    
+    CGImageRef imgRef = image.CGImage;
+    
+    CGFloat width = CGImageGetWidth(imgRef);
+    CGFloat height = CGImageGetHeight(imgRef);
+    
+    CGAffineTransform transform = CGAffineTransformIdentity;
+    CGRect bounds = CGRectMake(0, 0, width, height);
+    if (width > kMaxResolution || height > kMaxResolution) {
+        CGFloat ratio = width/height;
+        if (ratio > 1) {
+            bounds.size.width = kMaxResolution;
+            bounds.size.height = bounds.size.width / ratio;
+        }
+        else {
+            bounds.size.height = kMaxResolution;
+            bounds.size.width = bounds.size.height * ratio;
+        }
+    }
+    
+    CGFloat scaleRatio = bounds.size.width / width;
+    CGSize imageSize = CGSizeMake(CGImageGetWidth(imgRef), CGImageGetHeight(imgRef));
+    CGFloat boundHeight;
+    UIImageOrientation orient = image.imageOrientation;
+    orient = UIImageOrientationRight;
+    switch(orient) {
+            
+        case UIImageOrientationUp: //EXIF = 1
+            transform = CGAffineTransformIdentity;
+            break;
+            
+        case UIImageOrientationUpMirrored: //EXIF = 2
+            transform = CGAffineTransformMakeTranslation(imageSize.width, 0.0);
+            transform = CGAffineTransformScale(transform, -1.0, 1.0);
+            break;
+            
+        case UIImageOrientationDown: //EXIF = 3
+            transform = CGAffineTransformMakeTranslation(imageSize.width, imageSize.height);
+            transform = CGAffineTransformRotate(transform, M_PI);
+            break;
+            
+        case UIImageOrientationDownMirrored: //EXIF = 4
+            transform = CGAffineTransformMakeTranslation(0.0, imageSize.height);
+            transform = CGAffineTransformScale(transform, 1.0, -1.0);
+            break;
+            
+        case UIImageOrientationLeftMirrored: //EXIF = 5
+            boundHeight = bounds.size.height;
+            bounds.size.height = bounds.size.width;
+            bounds.size.width = boundHeight;
+            transform = CGAffineTransformMakeTranslation(imageSize.height, imageSize.width);
+            transform = CGAffineTransformScale(transform, -1.0, 1.0);
+            transform = CGAffineTransformRotate(transform, 3.0 * M_PI / 2.0);
+            break;
+            
+        case UIImageOrientationLeft: //EXIF = 6
+            boundHeight = bounds.size.height;
+            bounds.size.height = bounds.size.width;
+            bounds.size.width = boundHeight;
+            transform = CGAffineTransformMakeTranslation(0.0, imageSize.width);
+            transform = CGAffineTransformRotate(transform, 3.0 * M_PI / 2.0);
+            break;
+            
+        case UIImageOrientationRightMirrored: //EXIF = 7
+            boundHeight = bounds.size.height;
+            bounds.size.height = bounds.size.width;
+            bounds.size.width = boundHeight;
+            transform = CGAffineTransformMakeScale(-1.0, 1.0);
+            transform = CGAffineTransformRotate(transform, M_PI / 2.0);
+            break;
+            
+        case UIImageOrientationRight: //EXIF = 8
+            boundHeight = bounds.size.height;
+            bounds.size.height = bounds.size.width;
+            bounds.size.width = boundHeight;
+            transform = CGAffineTransformMakeTranslation(imageSize.height, 0.0);
+            transform = CGAffineTransformRotate(transform, M_PI / 2.0);
+            break;
+            
+        default:
+            [NSException raise:NSInternalInconsistencyException format:@"Invalid image orientation"];
+            
+    }
+    
+    UIGraphicsBeginImageContext(bounds.size);
+    
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    
+    if (orient == UIImageOrientationRight || orient == UIImageOrientationLeft) {
+        CGContextScaleCTM(context, -scaleRatio, scaleRatio);
+        CGContextTranslateCTM(context, -height, 0);
+    }
+    else {
+        CGContextScaleCTM(context, scaleRatio, -scaleRatio);
+        CGContextTranslateCTM(context, 0, -height);
+    }
+    
+    CGContextConcatCTM(context, transform);
+    
+    CGContextDrawImage(UIGraphicsGetCurrentContext(), CGRectMake(0, 0, width, height), imgRef);
+    UIImage *imageCopy = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    
+    return imageCopy;
+}
+
+
+
+
+- (unsigned char*) rotateBuffer: (CMSampleBufferRef) sampleBuffer
+{
+    CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
+    CVPixelBufferLockBaseAddress(imageBuffer,0);
+    
+    size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
+    size_t width = CVPixelBufferGetWidth(imageBuffer);
+    size_t height = CVPixelBufferGetHeight(imageBuffer);
+    size_t currSize = bytesPerRow*height*sizeof(unsigned char);
+    size_t bytesPerRowOut = 4*height*sizeof(unsigned char);
+    
+    void *srcBuff = CVPixelBufferGetBaseAddress(imageBuffer);
+    
+    /*
+     * rotationConstant:   0 -- rotate 0 degrees (simply copy the data from src to dest)
+     *             1 -- rotate 90 degrees counterclockwise
+     *             2 -- rotate 180 degress
+     *             3 -- rotate 270 degrees counterclockwise
+     */
+    uint8_t rotationConstant = 1;
+    
+    unsigned char *outBuff = (unsigned char*)malloc(currSize);
+    
+    vImage_Buffer ibuff = { srcBuff, height, width, bytesPerRow};
+    vImage_Buffer ubuff = { outBuff, width, height, bytesPerRowOut};
+    
+    vImage_Error err = vImageRotate90_ARGB8888 (&ibuff, &ubuff, rotationConstant, NULL, 0);
+    if (err != kvImageNoError) NSLog(@"%ld", err);
+    
+    return outBuff;
+}
+
+
+
+- (CVPixelBufferRef) rotateBufferCVPIxel: (CMSampleBufferRef) sampleBuffer
+{
+    CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
+    CVPixelBufferLockBaseAddress(imageBuffer,0);
+    
+    size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
+    size_t width = CVPixelBufferGetWidth(imageBuffer);
+    size_t height = CVPixelBufferGetHeight(imageBuffer);
+    
+    void *src_buff = CVPixelBufferGetBaseAddress(imageBuffer);
+    
+    NSDictionary *options = [NSDictionary dictionaryWithObjectsAndKeys:
+                             [NSNumber numberWithBool:YES], kCVPixelBufferCGImageCompatibilityKey,
+                             [NSNumber numberWithBool:YES], kCVPixelBufferCGBitmapContextCompatibilityKey,
+                             nil];
+    
+    CVPixelBufferRef pxbuffer = NULL;
+    //CVReturn status = CVPixelBufferPoolCreatePixelBuffer (NULL, _pixelWriter.pixelBufferPool, &pxbuffer);
+    CVReturn status = CVPixelBufferCreate(kCFAllocatorDefault, width,
+                                          height, kCVPixelFormatType_32BGRA, (CFDictionaryRef) options,
+                                          &pxbuffer);
+    
+    NSParameterAssert(status == kCVReturnSuccess && pxbuffer != NULL);
+    
+    CVPixelBufferLockBaseAddress(pxbuffer, 0);
+    void *dest_buff = CVPixelBufferGetBaseAddress(pxbuffer);
+    NSParameterAssert(dest_buff != NULL);
+    
+    int *src = (int*) src_buff ;
+    int *dest= (int*) dest_buff ;
+    size_t count = (bytesPerRow * height) / 4 ;
+    while (count--) {
+        *dest++ = *src++;
+    }
+    
+    //Test straight copy.
+    //memcpy(pxdata, baseAddress, width * height * 4) ;
+    CVPixelBufferUnlockBaseAddress(pxbuffer, 0);
+    CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+    return pxbuffer;
 }
 
 //--------------------------------------------------------------------------
