@@ -96,6 +96,11 @@ A full example could be:
                 "Result: " + result.text + "\n" +
                 "Format: " + result.format + "\n" +
                 "Cancelled: " + result.cancelled);
+          
+          // Use image in which the code was recognized in DOM
+          var scanImage = document.querySelector("#scanImage");	
+	       scanImage.setAttribute( 'src', result.scanImage );
+	       
       }, 
       function (error) {
           alert("Scanning failed: " + error);
