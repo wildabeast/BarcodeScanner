@@ -48,7 +48,7 @@
 - (NSString*)isScanNotPossible;
 - (void)scan:(CDVInvokedUrlCommand*)command;
 - (void)encode:(CDVInvokedUrlCommand*)command;
-- (void)returnSuccess:(NSString*)scannedText format:(NSString*)format cancelled:(BOOL)cancelled flipped:(BOOL)flipped callback:(NSString*)callback;
+- (void)returnSuccess:(NSString*)scannedText format:(NSString*)format scanImage:(NSString*)imageBase64 cancelled:(BOOL)cancelled flipped:(BOOL)flipped callback:(NSString*)callback;
 - (void)returnError:(NSString*)message callback:(NSString*)callback;
 @end
 
@@ -72,7 +72,7 @@
 
 - (id)initWithPlugin:(CDVBarcodeScanner*)plugin callback:(NSString*)callback parentViewController:(UIViewController*)parentViewController alterateOverlayXib:(NSString *)alternateXib;
 - (void)scanBarcode;
-- (void)barcodeScanSucceeded:(NSString*)text format:(NSString*)format;
+- (void)barcodeScanSucceeded:(NSString*)text format:(NSString*)format scanImage:(NSString*)imageBase64;
 - (void)barcodeScanFailed:(NSString*)message;
 - (void)barcodeScanCancelled;
 - (void)openDialog;
@@ -162,12 +162,13 @@
 }
 
 //--------------------------------------------------------------------------
-- (void)returnSuccess:(NSString*)scannedText format:(NSString*)format cancelled:(BOOL)cancelled flipped:(BOOL)flipped callback:(NSString*)callback{
+- (void)returnSuccess:(NSString*)scannedText format:(NSString*)format scanImage:(NSString*)imageBase64 cancelled:(BOOL)cancelled flipped:(BOOL)flipped callback:(NSString*)callback{
     NSNumber* cancelledNumber = [NSNumber numberWithInt:(cancelled?1:0)];
     
     NSMutableDictionary* resultDict = [[[NSMutableDictionary alloc] init] autorelease];
     [resultDict setObject:scannedText     forKey:@"text"];
     [resultDict setObject:format          forKey:@"format"];
+    [resultDict setObject:imageBase64          forKey:@"scanImage"];
     [resultDict setObject:cancelledNumber forKey:@"cancelled"];
     
     CDVPluginResult* result = [CDVPluginResult
@@ -288,9 +289,9 @@ parentViewController:(UIViewController*)parentViewController
 }
 
 //--------------------------------------------------------------------------
-- (void)barcodeScanSucceeded:(NSString*)text format:(NSString*)format {
+- (void)barcodeScanSucceeded:(NSString*)text format:(NSString*)format scanImage:(NSString*)imageBase64 {
     [self barcodeScanDone];
-    [self.plugin returnSuccess:text format:format cancelled:FALSE flipped:FALSE callback:self.callback];
+    [self.plugin returnSuccess:text format:format scanImage:imageBase64 cancelled:FALSE flipped:FALSE callback:self.callback];
 }
 
 //--------------------------------------------------------------------------
@@ -302,7 +303,7 @@ parentViewController:(UIViewController*)parentViewController
 //--------------------------------------------------------------------------
 - (void)barcodeScanCancelled {
     [self barcodeScanDone];
-    [self.plugin returnSuccess:@"" format:@"" cancelled:TRUE flipped:self.isFlipped callback:self.callback];
+    [self.plugin returnSuccess:@"" format:@"" scanImage:@"" cancelled:TRUE flipped:self.isFlipped callback:self.callback];
     if (self.isFlipped) {
         self.isFlipped = NO;
     }
@@ -410,9 +411,13 @@ parentViewController:(UIViewController*)parentViewController
      }
      ];
     
-    //         [self dumpImage: [[self getImageFromSample:sampleBuffer] autorelease]];
+    //  [self dumpImage: [[self getImageFromSample:sampleBuffer] autorelease]];
 #endif
-    
+
+    // Canvas Part: Outputs the image stream to Javascript
+    //NSString *javascript = @"CanvasCamera.capture('');";
+    //[self.plugin.webView performSelectorOnMainThread:@selector(stringByEvaluatingJavaScriptFromString:) withObject:javascript waitUntilDone:YES];
+   
     
     using namespace zxing;
     
@@ -450,7 +455,24 @@ parentViewController:(UIViewController*)parentViewController
         const char* cString      = resultText->getText().c_str();
         NSString*   resultString = [[[NSString alloc] initWithCString:cString encoding:NSUTF8StringEncoding] autorelease];
         
-        [self barcodeScanSucceeded:resultString format:format];
+        //DEBUG: Dump succeeded image to Photos
+        //UIImage *image= [[self getImageFromSample:sampleBuffer] autorelease];
+        //[self dumpImage: image];
+
+        // Write base64 to Javascript
+        UIImage *image= [[self getImageFromSample:sampleBuffer] autorelease];
+        NSString *imageBase64 = @"data:image/jpeg;base64,";
+        imageBase64 = [imageBase64 stringByAppendingString:[UIImagePNGRepresentation(image) base64EncodedStringWithOptions:NSDataBase64Encoding64CharacterLineLength]];
+        
+        // DEVELOPMENT idea 1: Write base64 image directly to DOM element
+        //NSString *javascript = @"document.getElementById('camera').src = '";
+        //javascript = [javascript stringByAppendingString:imageBase64];
+        //javascript = [javascript stringByAppendingString:@"';"];       
+        //NSLog(@"Executing javascript: %@", javascript);
+        //[self.plugin.webView writeJavascript:javascript];
+        //[self.plugin.webView performSelectorOnMainThread:@selector(stringByEvaluatingJavaScriptFromString:) withObject:javascript waitUntilDone:YES];
+
+        [self barcodeScanSucceeded:resultString format:format scanImage:imageBase64];
         
     }
     catch (zxing::ReaderException &rex) {

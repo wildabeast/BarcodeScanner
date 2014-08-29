@@ -70,7 +70,9 @@
          *    }
          * @param {Function} errorCallback
          */
-        BarcodeScanner.prototype.scan = function (successCallback, errorCallback) {
+         BarcodeScanner.prototype.scan = function (successCallback, errorCallback) {
+        //DEVELOPMENT: videoStream
+        // BarcodeScanner.prototype.scan = function (successCallback, errorCallback, videoStreamCallback) {
             if (errorCallback == null) {
                 errorCallback = function () {
                 };
@@ -85,6 +87,12 @@
                 console.log("BarcodeScanner.scan failure: success callback parameter must be a function");
                 return;
             }
+
+            //DEVELOPMENT: videoStream
+            // if (typeof videoStreamCallback != "function") {
+            //     console.log("BarcodeScanner.scan failure: video stream callback parameter must be a function");
+            //     return;
+            // }
 
             exec(successCallback, errorCallback, 'BarcodeScanner', 'scan', []);
         };
