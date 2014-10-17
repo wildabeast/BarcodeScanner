@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?><plugin xmlns="http://www.phonegap.com/ns/plugins/1.0"
     xmlns:android="http://schemas.android.com/apk/res/android"
     id="com.phonegap.plugins.barcodescanner"
-    version="1.0.1">
+    version="2.0.0">
 
     <name>BarcodeScanner</name>
-    <description>Scans Barcodes.</description>
+    <description>You can use the BarcodeScanner plugin to scan different types of barcodes (using the device's camera) and get the metadata encoded in them for processing within your application.</description>
     <license>MIT</license>
 
+    <repo>https://github.com/wildabeast/BarcodeScanner</repo>
+    <issue>https://github.com/wildabeast/BarcodeScanner/issues</issue> 
+    
     <engines>
         <engine name="cordova" version=">=3.0.0" />
     </engines>    
@@ -283,5 +286,38 @@
             <string name="wifi_ssid_label">Network Name</string>
             <string name="wifi_type_label">Type</string>
         </config-file>
+    </platform>
+
+    <platform name="windows8">
+        <js-module src="src/windows8/BarcodeScannerProxy.js" name="BarcodeScannerProxy">
+            <merges target="" />
+        </js-module>
+        <config-file target="package.appxmanifest" parent="/Package/Capabilities">
+            <DeviceCapability Name="webcam" />
+        </config-file>
+        <framework src="src/windows8/lib/ZXing.winmd" custom="true" />
+        <framework src="src/windows8/lib/WinRTBarcodeReader.winmd" custom="true" />
+    </platform>
+
+    <!-- Windows Phone 8 -->
+    <platform name="wp8">
+
+        <config-file target="config.xml" parent="/*">
+            <feature name="BarcodeScanner">
+                <param name="wp-package" value="BarcodeScanner"/>
+            </feature>
+        </config-file>
+
+        <config-file target="Properties/WMAppManifest.xml" parent="/Deployment/App/Capabilities">
+            <Capability Name="ID_CAP_ISV_CAMERA" />
+        </config-file>
+
+        <framework src="src/wp8/lib/zxing.wp8.0.dll" custom="true" />
+
+        <source-file src="src/wp8/BarcodeScanner.cs" />
+        <source-file src="src/wp8/BarcodeScannerTask.cs" />
+        <source-file src="src/wp8/BarcodeScannerUI.xaml" />
+        <source-file src="src/wp8/BarcodeScannerUI.xaml.cs" />
+
     </platform>
 </plugin>

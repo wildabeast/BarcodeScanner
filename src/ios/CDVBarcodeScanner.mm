@@ -49,7 +49,7 @@
 - (NSString*)isScanNotPossible;
 - (void)scan:(CDVInvokedUrlCommand*)command;
 - (void)encode:(CDVInvokedUrlCommand*)command;
-- (void)returnSuccess:(NSString*)scannedText format:(NSString*)format cancelled:(BOOL)cancelled callback:(NSString*)callback;
+- (void)returnSuccess:(NSString*)scannedText format:(NSString*)format cancelled:(BOOL)cancelled flipped:(BOOL)flipped callback:(NSString*)callback;
 - (void)returnError:(NSString*)message callback:(NSString*)callback;
 @end
 
@@ -67,6 +67,9 @@
 @property (nonatomic)         BOOL                        is1D;
 @property (nonatomic)         BOOL                        is2D;
 @property (nonatomic)         BOOL                        capturing;
+@property (nonatomic)         BOOL                        isFrontCamera;
+@property (nonatomic)         BOOL                        isFlipped;
+
 
 - (id)initWithPlugin:(CDVBarcodeScanner*)plugin callback:(NSString*)callback parentViewController:(UIViewController*)parentViewController alterateOverlayXib:(NSString *)alternateXib;
 - (void)scanBarcode;
@@ -147,7 +150,9 @@
                  parentViewController:self.viewController
                  alterateOverlayXib:overlayXib
                  ];
-    
+    [processor retain];
+    [processor retain];
+    [processor retain];
     // queue [processor scanBarcode] to run on the event loop
     [processor performSelector:@selector(scanBarcode) withObject:nil afterDelay:0];
 }
@@ -158,7 +163,7 @@
 }
 
 //--------------------------------------------------------------------------
-- (void)returnSuccess:(NSString*)scannedText format:(NSString*)format cancelled:(BOOL)cancelled callback:(NSString*)callback {
+- (void)returnSuccess:(NSString*)scannedText format:(NSString*)format cancelled:(BOOL)cancelled flipped:(BOOL)flipped callback:(NSString*)callback{
     NSNumber* cancelledNumber = [NSNumber numberWithInt:(cancelled?1:0)];
     
     NSMutableDictionary* resultDict = [[[NSMutableDictionary alloc] init] autorelease];
@@ -172,8 +177,9 @@
                                ];
     
     NSString* js = [result toSuccessCallbackString:callback];
-    
-    [self writeJavascript:js];
+    if (!flipped) {
+        [self writeJavascript:js];
+    }
 }
 
 //--------------------------------------------------------------------------
@@ -251,6 +257,9 @@ parentViewController:(UIViewController*)parentViewController
 
 //--------------------------------------------------------------------------
 - (void)scanBarcode {
+    
+//    self.captureSession = nil;
+//    self.previewLayer = nil;
     NSString* errorMessage = [self setUpCaptureSession];
     if (errorMessage) {
         [self barcodeScanFailed:errorMessage];
@@ -293,7 +302,7 @@ parentViewController:(UIViewController*)parentViewController
     
     AudioServicesPlaySystemSound(_soundFileObject);
     
-    [self.plugin returnSuccess:text format:format cancelled:FALSE callback:self.callback];
+    [self.plugin returnSuccess:text format:format cancelled:FALSE flipped:FALSE callback:self.callback];
 }
 
 //--------------------------------------------------------------------------
@@ -305,7 +314,19 @@ parentViewController:(UIViewController*)parentViewController
 //--------------------------------------------------------------------------
 - (void)barcodeScanCancelled {
     [self barcodeScanDone];
-    [self.plugin returnSuccess:@"" format:@"" cancelled:TRUE callback:self.callback];
+    [self.plugin returnSuccess:@"" format:@"" cancelled:TRUE flipped:self.isFlipped callback:self.callback];
+    if (self.isFlipped) {
+        self.isFlipped = NO;
+    }
+}
+
+
+- (void)flipCamera
+{
+    self.isFlipped = YES;
+    self.isFrontCamera = !self.isFrontCamera;
+    [self performSelector:@selector(barcodeScanCancelled) withObject:nil afterDelay:0];
+    [self performSelector:@selector(scanBarcode) withObject:nil afterDelay:0.1];
 }
 
 //--------------------------------------------------------------------------
@@ -315,8 +336,21 @@ parentViewController:(UIViewController*)parentViewController
     AVCaptureSession* captureSession = [[[AVCaptureSession alloc] init] autorelease];
     self.captureSession = captureSession;
     
-    AVCaptureDevice* device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
-    if (!device) return @"unable to obtain video capture device";
+       AVCaptureDevice* __block device = nil;
+    if (self.isFrontCamera) {
+    
+        NSArray* devices = [AVCaptureDevice devicesWithMediaType:AVMediaTypeVideo];
+        [devices enumerateObjectsUsingBlock:^(AVCaptureDevice *obj, NSUInteger idx, BOOL *stop) {
+            if (obj.position == AVCaptureDevicePositionFront) {
+                device = obj;
+            }
+        }];
+    } else {
+        device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
+        if (!device) return @"unable to obtain video capture device";
+        
+    }
+
     
     AVCaptureDeviceInput* input = [AVCaptureDeviceInput deviceInputWithDevice:device error:&error];
     if (!input) return @"unable to obtain video capture device input";
@@ -413,7 +447,7 @@ parentViewController:(UIViewController*)parentViewController
         decodeHints.addFormat(BarcodeFormat_EAN_13);
         decodeHints.addFormat(BarcodeFormat_CODE_128);
         decodeHints.addFormat(BarcodeFormat_CODE_39);
-        //            decodeHints.addFormat(BarcodeFormat_ITF);   causing crashes
+        decodeHints.addFormat(BarcodeFormat_ITF);
         
         // here's the meat of the decode process
         Ref<LuminanceSource>   luminanceSource   ([self getLuminanceSourceFromSample: sampleBuffer imageBytes:&imageBytes]);
@@ -641,7 +675,7 @@ parentViewController:(UIViewController*)parentViewController
 //--------------------------------------------------------------------------
 - (void)dealloc {
     self.view = nil;
-    self.processor = nil;
+//    self.processor = nil;
     self.shutterPressed = NO;
     self.alternateXib = nil;
     self.overlayView = nil;      
@@ -699,6 +733,11 @@ parentViewController:(UIViewController*)parentViewController
     [self.processor performSelector:@selector(barcodeScanCancelled) withObject:nil afterDelay:0];
 }
 
+- (void)flipCameraButtonPressed:(id)sender
+{
+    [self.processor performSelector:@selector(flipCamera) withObject:nil afterDelay:0];
+}
+
 //--------------------------------------------------------------------------
 - (UIView *)buildOverlayViewFromXib 
 {
@@ -737,11 +776,19 @@ parentViewController:(UIViewController*)parentViewController
                        action:@selector(cancelButtonPressed:)
                        ];
     
+    
     id flexSpace = [[[UIBarButtonItem alloc] autorelease]
                     initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace
                     target:nil
                     action:nil
                     ];
+    
+    id flipCamera = [[[UIBarButtonItem alloc] autorelease]
+                       initWithBarButtonSystemItem:UIBarButtonSystemItemCamera
+                       target:(id)self
+                       action:@selector(flipCameraButtonPressed:)
+                       ];
+
     
 #if USE_SHUTTER
     id shutterButton = [[UIBarButtonItem alloc]
@@ -750,9 +797,9 @@ parentViewController:(UIViewController*)parentViewController
                         action:@selector(shutterButtonPressed)
                         ];
     
-    toolbar.items = [NSArray arrayWithObjects:flexSpace,cancelButton,flexSpace,shutterButton,nil];
+    toolbar.items = [NSArray arrayWithObjects:flexSpace,cancelButton,flexSpace, flipCamera ,shutterButton,nil];
 #else
-    toolbar.items = [NSArray arrayWithObjects:flexSpace,cancelButton,flexSpace,nil];
+    toolbar.items = [NSArray arrayWithObjects:flexSpace,cancelButton,flexSpace, flipCamera,nil];
 #endif
     bounds = overlayView.bounds;
     
