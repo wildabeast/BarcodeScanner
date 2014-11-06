@@ -108,16 +108,18 @@ namespace WinRTBarcodeReader
         private async Task<Result> Read()
         {
             Result result = null;
-            while (!this.barcodeFound)
+            try
             {
-                try
+                while (!this.barcodeFound)
                 {
+
                     result = await this.GetCameraImage(this.cancelSearch.Token);
+
                 }
-                catch (OperationCanceledException)
-                {
-                    result = null;
-                }
+            }
+            catch (OperationCanceledException)
+            {
+                result = null;
             }
 
             return result;

@@ -20,6 +20,7 @@ module.exports = {
 
         var capturePreview = null,
             captureCancelButton = null,
+            captureCanceled = false,
             capture = null,
             captureSettings = null,
             reader = null,
@@ -74,8 +75,10 @@ module.exports = {
             reader = new WinRTBarcodeReader.Reader(capture, bitmapWidth, bitmapHeight);
             var readOp = reader.readCode();
             readOp.done(function (result) {
-                destroyPreview();
-                success({ text: result.text, format: result.barcodeFormat, cancelled: false });
+                if (!captureCanceled) {
+                    destroyPreview();
+                    success({ text: result.text, format: result.barcodeFormat, cancelled: false });
+                }
             });
         }
 
@@ -105,6 +108,7 @@ module.exports = {
          * See https://github.com/phonegap-build/BarcodeScanner#using-the-plugin
          */
         function cancelPreview() {
+            captureCanceled = true;
             destroyPreview();
             success({ text: null, format: null, cancelled: true });
         }
