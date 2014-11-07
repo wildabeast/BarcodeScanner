@@ -10,6 +10,7 @@
 #import <UIKit/UIKit.h>
 #import <AVFoundation/AVFoundation.h>
 #import <AssetsLibrary/AssetsLibrary.h>
+#import <AudioToolbox/AudioToolbox.h>
 
 //------------------------------------------------------------------------------
 // use the all-in-one version of zxing that we built
@@ -211,6 +212,8 @@
 @synthesize is2D                 = _is2D;
 @synthesize capturing            = _capturing;
 
+SystemSoundID _soundFileObject;
+
 //--------------------------------------------------------------------------
 - (id)initWithPlugin:(CDVBarcodeScanner*)plugin
             callback:(NSString*)callback
@@ -228,6 +231,9 @@ parentViewController:(UIViewController*)parentViewController
     self.is2D      = YES;
     self.capturing = NO;
     
+    CFURLRef soundFileURLRef  = CFBundleCopyResourceURL(CFBundleGetMainBundle(), CFSTR("CDVBarcodeScanner.bundle/beep"), CFSTR ("caf"), NULL);
+    AudioServicesCreateSystemSoundID(soundFileURLRef, &_soundFileObject);
+    
     return self;
 }
 
@@ -242,6 +248,9 @@ parentViewController:(UIViewController*)parentViewController
     self.alternateXib = nil;
     
     self.capturing = NO;
+    
+    AudioServicesRemoveSystemSoundCompletion(_soundFileObject);
+    AudioServicesDisposeSystemSoundID(_soundFileObject);
     
     [super dealloc];
 }
@@ -268,8 +277,9 @@ parentViewController:(UIViewController*)parentViewController
 //--------------------------------------------------------------------------
 - (void)openDialog {
     [self.parentViewController
-     presentModalViewController:self.viewController
+     presentViewController:self.viewController
      animated:YES
+     completion:nil
      ];
 }
 
@@ -277,7 +287,7 @@ parentViewController:(UIViewController*)parentViewController
 - (void)barcodeScanDone {
     self.capturing = NO;
     [self.captureSession stopRunning];
-    [self.parentViewController dismissModalViewControllerAnimated: YES];
+    [self.parentViewController dismissViewControllerAnimated: YES completion:nil];
     
     // viewcontroller holding onto a reference to us, release them so they
     // will release us
@@ -290,6 +300,9 @@ parentViewController:(UIViewController*)parentViewController
 //--------------------------------------------------------------------------
 - (void)barcodeScanSucceeded:(NSString*)text format:(NSString*)format {
     [self barcodeScanDone];
+    
+    AudioServicesPlaySystemSound(_soundFileObject);
+    
     [self.plugin returnSuccess:text format:format cancelled:FALSE flipped:FALSE callback:self.callback];
 }
 
@@ -354,7 +367,9 @@ parentViewController:(UIViewController*)parentViewController
     output.alwaysDiscardsLateVideoFrames = YES;
     output.videoSettings = videoOutputSettings;
     
-    [output setSampleBufferDelegate:self queue:dispatch_get_main_queue()];
+    dispatch_queue_t queue = dispatch_queue_create("CDVBarcodeScanner", NULL);
+    [output setSampleBufferDelegate:self queue:queue];
+    dispatch_release(queue);
     
     if (![captureSession canSetSessionPreset:AVCaptureSessionPresetMedium]) {
         return @"unable to preset medium quality video capture";
@@ -450,7 +465,13 @@ parentViewController:(UIViewController*)parentViewController
         const char* cString      = resultText->getText().c_str();
         NSString*   resultString = [[[NSString alloc] initWithCString:cString encoding:NSUTF8StringEncoding] autorelease];
         
-        [self barcodeScanSucceeded:resultString format:format];
+        NSMethodSignature *sig = [self methodSignatureForSelector:@selector(barcodeScanSucceeded:format:)];
+        NSInvocation *invoke = [NSInvocation invocationWithMethodSignature:sig];
+        [invoke setTarget:self];
+        [invoke setSelector:@selector(barcodeScanSucceeded:format:)];
+        [invoke setArgument:&resultString atIndex:2];
+        [invoke setArgument:&format atIndex:3];
+        [invoke performSelectorOnMainThread:@selector(invoke) withObject:nil waitUntilDone:YES];
         
     }
     catch (zxing::ReaderException &rex) {
@@ -587,7 +608,7 @@ parentViewController:(UIViewController*)parentViewController
     size_t height      = CVPixelBufferGetHeight(imageBuffer);
     
     uint8_t* baseAddress    = (uint8_t*) CVPixelBufferGetBaseAddress(imageBuffer);
-    int      length         = height * bytesPerRow;
+    size_t   length         = height * bytesPerRow;
     uint8_t* newBaseAddress = (uint8_t*) malloc(length);
     memcpy(newBaseAddress, baseAddress, length);
     baseAddress = newBaseAddress;
@@ -671,8 +692,8 @@ parentViewController:(UIViewController*)parentViewController
     previewLayer.frame = self.view.bounds;
     previewLayer.videoGravity = AVLayerVideoGravityResizeAspectFill;
     
-    if ([previewLayer isOrientationSupported]) {
-        [previewLayer setOrientation:AVCaptureVideoOrientationPortrait];
+    if ([previewLayer.connection isVideoOrientationSupported]) {
+        [previewLayer.connection setVideoOrientation:AVCaptureVideoOrientationPortrait];
     }
     
     [self.view.layer insertSublayer:previewLayer below:[[self.view.layer sublayers] objectAtIndex:0]];
@@ -684,7 +705,7 @@ parentViewController:(UIViewController*)parentViewController
 - (void)viewWillAppear:(BOOL)animated {
     
     // set video orientation to what the camera sees
-    self.processor.previewLayer.orientation = [[UIApplication sharedApplication] statusBarOrientation];
+    self.processor.previewLayer.connection.videoOrientation = [[UIApplication sharedApplication] statusBarOrientation];
     
     // this fixes the bug when the statusbar is landscape, and the preview layer
     // starts up in portrait (not filling the whole view)
@@ -894,7 +915,7 @@ parentViewController:(UIViewController*)parentViewController
 {
     [CATransaction begin];
     
-    self.processor.previewLayer.orientation = orientation;
+    self.processor.previewLayer.connection.videoOrientation = orientation;
     [self.processor.previewLayer layoutSublayers];
     self.processor.previewLayer.frame = self.view.bounds;
     
