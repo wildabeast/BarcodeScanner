@@ -48,6 +48,7 @@ module.exports = {
 
             captureSettings = new Windows.Media.Capture.MediaCaptureInitializationSettings();
             captureSettings.streamingCaptureMode = Windows.Media.Capture.StreamingCaptureMode.video;
+            captureSettings.photoCaptureSource = Windows.Media.Capture.PhotoCaptureSource.videoPreview;
         }
 
         /**
