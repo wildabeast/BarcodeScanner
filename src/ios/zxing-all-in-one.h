@@ -1743,9 +1743,14 @@ namespace zxing {
 		BarcodeFormat_EAN_13,
 		BarcodeFormat_CODE_128,
 		BarcodeFormat_CODE_39,
-		BarcodeFormat_ITF
+		BarcodeFormat_ITF,
+        BarcodeFormat_GS1_DATA_MATRIX,
+        BarcodeFormat_GS1_QR_CODE,
+        BarcodeFormat_GS1_128,
+        BarcodeFormat_GS1_DATA_BAR,
+        BarcodeFormat_GS1_COMPOSITE
 	} BarcodeFormat;
-
+    
 	/* if you update the enum, please update the name in BarcodeFormat.cpp */
 	extern const char *barcodeFormatNames[];
 }
@@ -1903,9 +1908,14 @@ class DecodeHints {
   static const DecodeHintType BARCODEFORMAT_CODE_128_HINT = 1 << BarcodeFormat_CODE_128;
   static const DecodeHintType BARCODEFORMAT_CODE_39_HINT = 1 << BarcodeFormat_CODE_39;
   static const DecodeHintType BARCODEFORMAT_ITF_HINT = 1 << BarcodeFormat_ITF;
+//  static const DecodeHintType BARCODEFORMAT_GS1_DATA_MATRIX_HINT = 1 << BarcodeFormat_GS1_DATA_MATRIX;
+//  static const DecodeHintType BARCODEFORMAT_GS1_QR_CODE_HINT = 1 << BarcodeFormat_GS1_QR_CODE;
+//  static const DecodeHintType BARCODEFORMAT_GS1_128_HINT = 1 << BarcodeFormat_GS1_128;
+//  static const DecodeHintType BARCODEFORMAT_GS1_DATA_BAR_HINT = 1 << BarcodeFormat_GS1_DATA_BAR;
+//  static const DecodeHintType BARCODEFORMAT_GS1_COMPOSITE_HINT = 1 << BarcodeFormat_GS1_COMPOSITE;
   static const DecodeHintType CHARACTER_SET = 1 << 30;
   static const DecodeHintType TRYHARDER_HINT = 1 << 31;
-
+  
   static const DecodeHints PRODUCT_HINT;
   static const DecodeHints ONED_HINT;
   static const DecodeHints DEFAULT_HINT;
