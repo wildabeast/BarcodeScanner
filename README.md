@@ -86,7 +86,7 @@ The following barcode types are currently supported:
 * AZTEC
 * PDF417
 
-`success` and `fail` are callback functions. Success is passed an object with data, type and cancelled properties. Data is the text representation of the barcode data, type is the type of barcode detected and cancelled is whether or not the user cancelled the scan.
+`success` and `fail` are callback functions. Success is passed an object with data, type and cancelled properties. Data is the text representation of the barcode data, type is the type of barcode detected and cancelled is whether or not the user cancelled the scan. In iOS you also get the successfully last-scanned image as base64 string in the success callback.
 
 A full example could be:
 ```
@@ -96,6 +96,11 @@ A full example could be:
                 "Result: " + result.text + "\n" +
                 "Format: " + result.format + "\n" +
                 "Cancelled: " + result.cancelled);
+          
+          // Use image in which the code was recognized in DOM
+          var scanImage = document.querySelector("#scanImage");	
+	       scanImage.setAttribute( 'src', result.scanImage );
+	       
       }, 
       function (error) {
           alert("Scanning failed: " + error);

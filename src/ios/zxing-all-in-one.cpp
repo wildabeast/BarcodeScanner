@@ -35,7 +35,12 @@ const char *barcodeFormatNames[] = {
     "EAN_13",
     "CODE_128",
     "CODE_39",
-    "ITF"
+    "ITF",
+    "GS1_DATA_MATRIX",
+    "GS1_QR_CODE",
+    "GS1_128",
+    "GS1_DATA_BAR",
+    "GS1_COMPOSITE"
 };
 
 }
@@ -222,6 +227,11 @@ void DecodeHints::addFormat(BarcodeFormat toadd) {
     case BarcodeFormat_CODE_128: hints |= BARCODEFORMAT_CODE_128_HINT; break;
     case BarcodeFormat_CODE_39: hints |= BARCODEFORMAT_CODE_39_HINT; break;
     case BarcodeFormat_ITF: hints |= BARCODEFORMAT_ITF_HINT; break;
+//    case BarcodeFormat_GS1_DATA_MATRIX: hints |= BarcodeFormat_GS1_DATA_MATRIX; break;
+//    case BarcodeFormat_GS1_QR_CODE: hints |= BarcodeFormat_GS1_QR_CODE; break;
+//    case BarcodeFormat_GS1_128: hints |= BarcodeFormat_GS1_128; break;
+//    case BarcodeFormat_GS1_DATA_BAR: hints |= BarcodeFormat_GS1_DATA_BAR; break;
+//    case BarcodeFormat_GS1_COMPOSITE: hints |= BarcodeFormat_GS1_COMPOSITE; break;
     default: throw IllegalArgumentException("Unrecognizd barcode format");
   }
 }
@@ -238,6 +248,11 @@ bool DecodeHints::containsFormat(BarcodeFormat tocheck) const {
     case BarcodeFormat_CODE_128: checkAgainst = BARCODEFORMAT_CODE_128_HINT; break;
     case BarcodeFormat_CODE_39: checkAgainst = BARCODEFORMAT_CODE_39_HINT; break;
     case BarcodeFormat_ITF: checkAgainst = BARCODEFORMAT_ITF_HINT; break;
+//    case BarcodeFormat_GS1_DATA_MATRIX: checkAgainst = BARCODEFORMAT_GS1_DATA_MATRIX_HINT; break;
+//    case BarcodeFormat_GS1_QR_CODE: checkAgainst = BARCODEFORMAT_GS1_QR_CODE_HINT; break;
+//    case BarcodeFormat_GS1_128: checkAgainst = BARCODEFORMAT_GS1_128_HINT; break;
+//    case BarcodeFormat_GS1_DATA_BAR: checkAgainst = BARCODEFORMAT_GS1_DATA_BAR_HINT; break;
+//    case BarcodeFormat_GS1_COMPOSITE: checkAgainst = BARCODEFORMAT_GS1_COMPOSITE_HINT; break;
     default: throw IllegalArgumentException("Unrecognizd barcode format");
   }
   return (hints & checkAgainst);
@@ -3877,9 +3892,17 @@ Ref<Result> DataMatrixReader::decode(Ref<BinaryBitmap> image, DecodeHints hints)
 #ifdef DEBUG
   cout << "(4) decoded, have decoderResult " << decoderResult.object_ << "\n" << flush;
 #endif
-
-  Ref<Result> result(
-    new Result(decoderResult->getText(), decoderResult->getRawBytes(), points, BarcodeFormat_DATA_MATRIX));
+    
+    Ref<Result> result;
+    result = new Result(decoderResult->getText(), decoderResult->getRawBytes(), points, BarcodeFormat_DATA_MATRIX);
+    
+    // Detect GS1 Codes
+    switch (decoderResult->getRawBytes()[0]) {
+        case 232:
+            result = new Result(decoderResult->getText(), decoderResult->getRawBytes(), points, BarcodeFormat_GS1_DATA_MATRIX);
+            break;
+    }
+  
 #ifdef DEBUG
   cout << "(5) created result " << result.object_ << ", returning\n" << flush;
 #endif
@@ -4783,7 +4806,7 @@ void DecodedBitStreamParser::decodeC40Segment(Ref<BitSource> bits, ostringstream
               result << C40_SHIFT2_SET_CHARS[cValue];
             }
           } else if (cValue == 27) {  // FNC1
-            result << ((char) 29); // translate as ASCII 29
+              result << ((char) 29); // translate as ASCII 29
           } else if (cValue == 30) {  // Upper Shift
             upperShift = true;
           } else {

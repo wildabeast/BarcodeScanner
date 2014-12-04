@@ -48,7 +48,7 @@
 - (NSString*)isScanNotPossible;
 - (void)scan:(CDVInvokedUrlCommand*)command;
 - (void)encode:(CDVInvokedUrlCommand*)command;
-- (void)returnSuccess:(NSString*)scannedText format:(NSString*)format cancelled:(BOOL)cancelled flipped:(BOOL)flipped callback:(NSString*)callback;
+- (void)returnSuccess:(NSString*)scannedText format:(NSString*)format scanImage:(NSString*)imageBase64 cancelled:(BOOL)cancelled flipped:(BOOL)flipped callback:(NSString*)callback;
 - (void)returnError:(NSString*)message callback:(NSString*)callback;
 @end
 
@@ -72,7 +72,7 @@
 
 - (id)initWithPlugin:(CDVBarcodeScanner*)plugin callback:(NSString*)callback parentViewController:(UIViewController*)parentViewController alterateOverlayXib:(NSString *)alternateXib;
 - (void)scanBarcode;
-- (void)barcodeScanSucceeded:(NSString*)text format:(NSString*)format;
+- (void)barcodeScanSucceeded:(NSString*)text format:(NSString*)format scanImage:(NSString*)imageBase64;
 - (void)barcodeScanFailed:(NSString*)message;
 - (void)barcodeScanCancelled;
 - (void)openDialog;
@@ -162,12 +162,13 @@
 }
 
 //--------------------------------------------------------------------------
-- (void)returnSuccess:(NSString*)scannedText format:(NSString*)format cancelled:(BOOL)cancelled flipped:(BOOL)flipped callback:(NSString*)callback{
+- (void)returnSuccess:(NSString*)scannedText format:(NSString*)format scanImage:(NSString*)imageBase64 cancelled:(BOOL)cancelled flipped:(BOOL)flipped callback:(NSString*)callback{
     NSNumber* cancelledNumber = [NSNumber numberWithInt:(cancelled?1:0)];
     
     NSMutableDictionary* resultDict = [[[NSMutableDictionary alloc] init] autorelease];
     [resultDict setObject:scannedText     forKey:@"text"];
     [resultDict setObject:format          forKey:@"format"];
+    [resultDict setObject:imageBase64          forKey:@"scanImage"];
     [resultDict setObject:cancelledNumber forKey:@"cancelled"];
     
     CDVPluginResult* result = [CDVPluginResult
@@ -288,9 +289,9 @@ parentViewController:(UIViewController*)parentViewController
 }
 
 //--------------------------------------------------------------------------
-- (void)barcodeScanSucceeded:(NSString*)text format:(NSString*)format {
+- (void)barcodeScanSucceeded:(NSString*)text format:(NSString*)format scanImage:(NSString*)imageBase64 {
     [self barcodeScanDone];
-    [self.plugin returnSuccess:text format:format cancelled:FALSE flipped:FALSE callback:self.callback];
+    [self.plugin returnSuccess:text format:format scanImage:imageBase64 cancelled:FALSE flipped:FALSE callback:self.callback];
 }
 
 //--------------------------------------------------------------------------
@@ -302,7 +303,7 @@ parentViewController:(UIViewController*)parentViewController
 //--------------------------------------------------------------------------
 - (void)barcodeScanCancelled {
     [self barcodeScanDone];
-    [self.plugin returnSuccess:@"" format:@"" cancelled:TRUE flipped:self.isFlipped callback:self.callback];
+    [self.plugin returnSuccess:@"" format:@"" scanImage:@"" cancelled:TRUE flipped:self.isFlipped callback:self.callback];
     if (self.isFlipped) {
         self.isFlipped = NO;
     }
@@ -338,8 +339,8 @@ parentViewController:(UIViewController*)parentViewController
         if (!device) return @"unable to obtain video capture device";
         
     }
-
     
+   
     AVCaptureDeviceInput* input = [AVCaptureDeviceInput deviceInputWithDevice:device error:&error];
     if (!input) return @"unable to obtain video capture device input";
     
@@ -392,6 +393,11 @@ parentViewController:(UIViewController*)parentViewController
     
     if (!self.capturing) return;
     
+    // Important: set orientation of AVCaptureCOnnection to that of the device
+    if ([connection isVideoOrientationSupported]) {
+        [connection setVideoOrientation:[[UIDevice currentDevice] orientation]];
+    }
+    
 #if USE_SHUTTER
     if (!self.viewController.shutterPressed) return;
     self.viewController.shutterPressed = NO;
@@ -410,10 +416,13 @@ parentViewController:(UIViewController*)parentViewController
      }
      ];
     
-    //         [self dumpImage: [[self getImageFromSample:sampleBuffer] autorelease]];
+    //  [self dumpImage: [[self getImageFromSample:sampleBuffer] autorelease]];
 #endif
-    
-    
+
+    // Canvas Part: Outputs the image stream to Javascript
+    //NSString *javascript = @"CanvasCamera.capture('');";
+    //[self.plugin.webView performSelectorOnMainThread:@selector(stringByEvaluatingJavaScriptFromString:) withObject:javascript waitUntilDone:YES];
+   
     using namespace zxing;
     
     // LuminanceSource is pretty dumb; we have to give it a pointer to
@@ -450,7 +459,16 @@ parentViewController:(UIViewController*)parentViewController
         const char* cString      = resultText->getText().c_str();
         NSString*   resultString = [[[NSString alloc] initWithCString:cString encoding:NSUTF8StringEncoding] autorelease];
         
-        [self barcodeScanSucceeded:resultString format:format];
+        //DEBUG: Dump succeeded image to Photos
+        //UIImage *image= [[self getImageFromSample:sampleBuffer] autorelease];
+        //[self dumpImage: image];
+
+        // Write base64 to Javascript
+        UIImage *image= [[self getImageFromSample:sampleBuffer] autorelease];
+        NSString *imageBase64 = @"data:image/jpeg;base64,";
+        imageBase64 = [imageBase64 stringByAppendingString:[UIImagePNGRepresentation(image) base64EncodedStringWithOptions:NSDataBase64Encoding64CharacterLineLength]];
+        
+        [self barcodeScanSucceeded:resultString format:format scanImage:imageBase64];
         
     }
     catch (zxing::ReaderException &rex) {
@@ -488,6 +506,11 @@ parentViewController:(UIViewController*)parentViewController
     if (format == zxing::BarcodeFormat_CODE_128)     return @"CODE_128";
     if (format == zxing::BarcodeFormat_CODE_39)      return @"CODE_39";
     if (format == zxing::BarcodeFormat_ITF)          return @"ITF";
+    if (format == zxing::BarcodeFormat_GS1_DATA_MATRIX)  return @"GS1_DATA_MATRIX";
+    if (format == zxing::BarcodeFormat_GS1_QR_CODE)  return @"GS1_QR_CODE";
+    if (format == zxing::BarcodeFormat_GS1_128)  return @"GS1_128";
+    if (format == zxing::BarcodeFormat_GS1_DATA_BAR)  return @"GS1_DATA_BAR";
+    if (format == zxing::BarcodeFormat_GS1_COMPOSITE)  return @"GS1_COMPOSITE";
     return @"???";
 }
 
@@ -579,6 +602,7 @@ parentViewController:(UIViewController*)parentViewController
 // for debugging
 //--------------------------------------------------------------------------
 - (UIImage*)getImageFromSample:(CMSampleBufferRef)sampleBuffer {
+
     CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
     CVPixelBufferLockBaseAddress(imageBuffer, 0);
     
@@ -593,6 +617,7 @@ parentViewController:(UIViewController*)parentViewController
     baseAddress = newBaseAddress;
     
     CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+
     CGContextRef context = CGBitmapContextCreate(
                                                  baseAddress,
                                                  width, height, 8, bytesPerRow,
@@ -824,7 +849,8 @@ parentViewController:(UIViewController*)parentViewController
 #define RETICLE_SIZE    500.0f
 #define RETICLE_WIDTH    10.0f
 #define RETICLE_OFFSET   60.0f
-#define RETICLE_ALPHA     0.4f
+#define RETICLE_ALPHA     1.0f
+#define RADIUS             75
 
 //-------------------------------------------------------------------------
 // builds the green box and red line
@@ -833,30 +859,51 @@ parentViewController:(UIViewController*)parentViewController
     UIImage* result;
     UIGraphicsBeginImageContext(CGSizeMake(RETICLE_SIZE, RETICLE_SIZE));
     CGContextRef context = UIGraphicsGetCurrentContext();
-    
-    if (self.processor.is1D) {
-        UIColor* color = [UIColor colorWithRed:1.0 green:0.0 blue:0.0 alpha:RETICLE_ALPHA];
-        CGContextSetStrokeColorWithColor(context, color.CGColor);
-        CGContextSetLineWidth(context, RETICLE_WIDTH);
-        CGContextBeginPath(context);
-        CGFloat lineOffset = RETICLE_OFFSET+(0.5*RETICLE_WIDTH);
-        CGContextMoveToPoint(context, lineOffset, RETICLE_SIZE/2);
-        CGContextAddLineToPoint(context, RETICLE_SIZE-lineOffset, 0.5*RETICLE_SIZE);
-        CGContextStrokePath(context);
-    }
+
+    // Cross line
+//    if (self.processor.is1D) {
+//        UIColor* color = [UIColor colorWithRed:0 green:0.55 blue:0.72 alpha:RETICLE_ALPHA];
+//        CGContextSetStrokeColorWithColor(context, color.CGColor);
+//        CGContextSetLineWidth(context, RETICLE_WIDTH);
+//        CGContextBeginPath(context);
+//        CGFloat lineOffset = RETICLE_OFFSET+(0.5*RETICLE_WIDTH);
+//        CGContextMoveToPoint(context, lineOffset, RETICLE_SIZE/2);
+//        CGContextAddLineToPoint(context, RETICLE_SIZE-lineOffset, 0.5*RETICLE_SIZE);
+//        CGContextStrokePath(context);
+//    }
     
     if (self.processor.is2D) {
-        UIColor* color = [UIColor colorWithRed:0.0 green:1.0 blue:0.0 alpha:RETICLE_ALPHA];
+        UIColor* color = [UIColor colorWithRed:0.0 green:0.55 blue:0.72 alpha:RETICLE_ALPHA];
         CGContextSetStrokeColorWithColor(context, color.CGColor);
         CGContextSetLineWidth(context, RETICLE_WIDTH);
-        CGContextStrokeRect(context,
-                            CGRectMake(
-                                       RETICLE_OFFSET,
-                                       RETICLE_OFFSET,
-                                       RETICLE_SIZE-2*RETICLE_OFFSET,
-                                       RETICLE_SIZE-2*RETICLE_OFFSET
-                                       )
-                            );
+        
+        // No filling
+        [[UIColor clearColor] setFill];
+        
+        // rechts unten
+        CGContextMoveToPoint(context, RETICLE_SIZE - 3*RETICLE_OFFSET, RETICLE_SIZE - RETICLE_OFFSET);
+        //CGContextAddLineToPoint(context, RETICLE_SIZE-RETICLE_OFFSET, RETICLE_SIZE - RETICLE_OFFSET);
+        CGContextAddArcToPoint(context, RETICLE_SIZE-RETICLE_OFFSET, RETICLE_SIZE - RETICLE_OFFSET, RETICLE_SIZE - RETICLE_OFFSET, RETICLE_OFFSET, RADIUS);
+        CGContextAddLineToPoint(context, RETICLE_SIZE-RETICLE_OFFSET, RETICLE_SIZE - 3*RETICLE_OFFSET);
+        CGContextDrawPath(context, kCGPathFillStroke);
+
+        // rechts oben
+        CGContextMoveToPoint(context, RETICLE_SIZE - RETICLE_OFFSET, 3*RETICLE_OFFSET);
+        CGContextAddArcToPoint(context, RETICLE_SIZE - RETICLE_OFFSET, RETICLE_OFFSET, RETICLE_OFFSET, RETICLE_OFFSET, RADIUS);
+        CGContextAddLineToPoint(context, RETICLE_SIZE-3*RETICLE_OFFSET, RETICLE_OFFSET);
+        CGContextDrawPath(context, kCGPathFillStroke);
+        
+        // links oben
+        CGContextMoveToPoint(context, 3*RETICLE_OFFSET, RETICLE_OFFSET);
+        CGContextAddArcToPoint(context, RETICLE_OFFSET, RETICLE_OFFSET, RETICLE_OFFSET, 2*RETICLE_OFFSET, RADIUS);
+        CGContextAddLineToPoint(context, RETICLE_OFFSET, 3*RETICLE_OFFSET);
+        CGContextDrawPath(context, kCGPathFillStroke);
+        
+        // links unten
+        CGContextMoveToPoint(context, RETICLE_OFFSET, RETICLE_SIZE - 3*RETICLE_OFFSET);
+        CGContextAddArcToPoint(context, RETICLE_OFFSET, RETICLE_SIZE - RETICLE_OFFSET, 3*RETICLE_OFFSET, RETICLE_SIZE - RETICLE_OFFSET, RADIUS);
+        CGContextAddLineToPoint(context, 3*RETICLE_OFFSET, RETICLE_SIZE - RETICLE_OFFSET);
+        CGContextDrawPath(context, kCGPathFillStroke);
     }
     
     result = UIGraphicsGetImageFromCurrentImageContext();
