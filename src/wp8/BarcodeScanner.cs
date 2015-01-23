@@ -20,12 +20,20 @@
     /// </summary>
     public class BarcodeScanner : BaseCommand
     {
+
+        public event System.EventHandler<PluginResult> savedHandler;
+
         /// <summary>
         /// Scans the barcode.
         /// </summary>
         /// <param name="options">Parameter is ignored.</param>
         public void scan(string options)
         {
+
+            if (ResultHandlers.ContainsKey(CurrentCommandCallbackId))
+            {
+                savedHandler = ResultHandlers[CurrentCommandCallbackId];
+            }
             var task = new BarcodeScannerTask();
             task.Completed += this.TaskCompleted;
             task.Show();
@@ -38,6 +46,11 @@
         /// <param name="e">The scan result.</param>
         private void TaskCompleted(object sender, BarcodeScannerTask.ScanResult e)
         {
+
+            if (!ResultHandlers.ContainsKey(CurrentCommandCallbackId))
+            {
+                ResultHandlers.Add(CurrentCommandCallbackId, savedHandler);
+            }
             PluginResult result;
 
             switch (e.TaskResult)
