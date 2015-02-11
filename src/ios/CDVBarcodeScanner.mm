@@ -219,7 +219,7 @@ parentViewController:(UIViewController*)parentViewController
     self.alternateXib         = alternateXib;
     
     self.is1D      = YES;
-    self.is2D      = YES;
+    self.is2D      = NO;  // Turn off the ugly green square
     self.capturing = NO;
     
     return self;
@@ -818,7 +818,7 @@ parentViewController:(UIViewController*)parentViewController
 //--------------------------------------------------------------------------
 
 #define RETICLE_SIZE    500.0f
-#define RETICLE_WIDTH    10.0f
+#define RETICLE_WIDTH     2.0f  // Make the reticle lines thinner
 #define RETICLE_OFFSET   60.0f
 #define RETICLE_ALPHA     0.4f
 
