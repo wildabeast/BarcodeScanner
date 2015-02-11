@@ -69,8 +69,11 @@
          *        cancelled : true/false, // Was canceled.
          *    }
          * @param {Function} errorCallback
+         * @param {Hash} options
          */
-        BarcodeScanner.prototype.scan = function (successCallback, errorCallback) {
+        BarcodeScanner.prototype.scan = function (successCallback, errorCallback, options) {
+            options = options || {};
+
             if (errorCallback == null) {
                 errorCallback = function () {
                 };
@@ -86,7 +89,7 @@
                 return;
             }
 
-            exec(successCallback, errorCallback, 'BarcodeScanner', 'scan', []);
+            exec(successCallback, errorCallback, 'BarcodeScanner', 'scan', [options.types || []]);
         };
 
         //-------------------------------------------------------------------

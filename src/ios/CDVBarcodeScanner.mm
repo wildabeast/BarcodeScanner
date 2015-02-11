@@ -63,6 +63,7 @@
 @property (nonatomic, retain) AVCaptureSession*           captureSession;
 @property (nonatomic, retain) AVCaptureVideoPreviewLayer* previewLayer;
 @property (nonatomic, retain) NSString*                   alternateXib;
+@property (nonatomic, retain) NSArray*                    decodeFormats;
 @property (nonatomic)         BOOL                        is1D;
 @property (nonatomic)         BOOL                        is2D;
 @property (nonatomic)         BOOL                        capturing;
@@ -70,7 +71,7 @@
 @property (nonatomic)         BOOL                        isFlipped;
 
 
-- (id)initWithPlugin:(CDVBarcodeScanner*)plugin callback:(NSString*)callback parentViewController:(UIViewController*)parentViewController alterateOverlayXib:(NSString *)alternateXib;
+- (id)initWithPlugin:(CDVBarcodeScanner*)plugin callback:(NSString*)callback parentViewController:(UIViewController*)parentViewController alterateOverlayXib:(NSString *)alternateXib decodeFormats:(NSArray *)decodeFormats;
 - (void)scanBarcode;
 - (void)barcodeScanSucceeded:(NSString*)text format:(NSString*)format;
 - (void)barcodeScanFailed:(NSString*)message;
@@ -129,14 +130,21 @@
     NSString*       capabilityError;
     
     callback = command.callbackId;
-    
-    // We allow the user to define an alternate xib file for loading the overlay. 
-    NSString *overlayXib = nil;
+
+    // We allow the user to define the decoding formats
+    NSArray *decodeFormats = nil;
     if ( [command.arguments count] >= 1 )
     {
-        overlayXib = [command.arguments objectAtIndex:0];
+        decodeFormats = [command.arguments objectAtIndex:0];
     }
-    
+
+    // We allow the user to define an alternate xib file for loading the overlay.
+    NSString *overlayXib = nil;
+    if ( [command.arguments count] >= 2 )
+    {
+        overlayXib = [command.arguments objectAtIndex:1];
+    }
+
     capabilityError = [self isScanNotPossible];
     if (capabilityError) {
         [self returnError:capabilityError callback:callback];
@@ -148,6 +156,7 @@
                  callback:callback
                  parentViewController:self.viewController
                  alterateOverlayXib:overlayXib
+                 decodeFormats:decodeFormats
                  ];
     [processor retain];
     [processor retain];
@@ -209,7 +218,8 @@
 - (id)initWithPlugin:(CDVBarcodeScanner*)plugin
             callback:(NSString*)callback
 parentViewController:(UIViewController*)parentViewController
-  alterateOverlayXib:(NSString *)alternateXib {
+  alterateOverlayXib:(NSString *)alternateXib
+       decodeFormats:(NSArray *)decodeFormats {
     self = [super init];
     if (!self) return self;
     
@@ -217,7 +227,8 @@ parentViewController:(UIViewController*)parentViewController
     self.callback             = callback;
     self.parentViewController = parentViewController;
     self.alternateXib         = alternateXib;
-    
+    self.decodeFormats        = decodeFormats;
+
     self.is1D      = YES;
     self.is2D      = NO;  // Turn off the ugly green square
     self.capturing = NO;
@@ -421,16 +432,15 @@ parentViewController:(UIViewController*)parentViewController
     
     try {
         DecodeHints decodeHints;
-        decodeHints.addFormat(BarcodeFormat_QR_CODE);
-        decodeHints.addFormat(BarcodeFormat_DATA_MATRIX);
-        decodeHints.addFormat(BarcodeFormat_UPC_E);
-        decodeHints.addFormat(BarcodeFormat_UPC_A);
-        decodeHints.addFormat(BarcodeFormat_EAN_8);
-        decodeHints.addFormat(BarcodeFormat_EAN_13);
-        decodeHints.addFormat(BarcodeFormat_CODE_128);
-        decodeHints.addFormat(BarcodeFormat_CODE_39);
-        decodeHints.addFormat(BarcodeFormat_ITF);
-        
+
+        // Add formats in decodeFormats, or all of them if empty
+        for (int i = 1; i < BarcodeFormat_Count; i++) {
+            BarcodeFormat bf = (BarcodeFormat)i;
+            if ( self.decodeFormats == nil || [self.decodeFormats containsObject: [self formatStringFrom:bf]] ) {
+                decodeHints.addFormat(bf);
+            }
+        }
+
         // here's the meat of the decode process
         Ref<LuminanceSource>   luminanceSource   ([self getLuminanceSourceFromSample: sampleBuffer imageBytes:&imageBytes]);
         //            [self dumpImage: [[self getImageFromLuminanceSource:luminanceSource] autorelease]];
