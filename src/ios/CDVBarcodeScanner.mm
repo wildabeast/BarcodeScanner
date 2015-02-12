@@ -103,7 +103,7 @@
 - (UIImage*)buildReticleImage;
 - (void)shutterButtonPressed;
 - (IBAction)cancelButtonPressed:(id)sender;
-
+- (CGRect)getPreviewFrameRect;
 @end
 
 //------------------------------------------------------------------------------
@@ -674,7 +674,7 @@ parentViewController:(UIViewController*)parentViewController
     
     // setup capture preview layer
     AVCaptureVideoPreviewLayer* previewLayer = self.processor.previewLayer;
-    previewLayer.frame = self.view.bounds;
+    previewLayer.frame = [self getPreviewFrameRect];
     previewLayer.videoGravity = AVLayerVideoGravityResizeAspectFill;
     
     if ([previewLayer.connection isVideoOrientationSupported]) {
@@ -694,7 +694,7 @@ parentViewController:(UIViewController*)parentViewController
     
     // this fixes the bug when the statusbar is landscape, and the preview layer
     // starts up in portrait (not filling the whole view)
-    self.processor.previewLayer.frame = self.view.bounds;
+    self.processor.previewLayer.frame = [self getPreviewFrameRect];
 }
 
 //--------------------------------------------------------------------------
@@ -902,10 +902,22 @@ parentViewController:(UIViewController*)parentViewController
     
     self.processor.previewLayer.connection.videoOrientation = orientation;
     [self.processor.previewLayer layoutSublayers];
-    self.processor.previewLayer.frame = self.view.bounds;
+    self.processor.previewLayer.frame = [self getPreviewFrameRect];
     
     [CATransaction commit];
     [super willAnimateRotationToInterfaceOrientation:orientation duration:duration];
+}
+
+// Hack to remove black bar under iOS 8
+// https://github.com/wildabeast/BarcodeScanner/issues/197 ; http://pastebin.com/5PV9Kju1
+- (CGRect)getPreviewFrameRect {
+    CGSize size = self.view.bounds.size;
+
+    if (size.height > size.width) {
+        return CGRectMake(0, 0, size.width, size.height);
+    } else {
+        return CGRectMake(0, 0, size.height, size.width);
+    }
 }
 
 @end
