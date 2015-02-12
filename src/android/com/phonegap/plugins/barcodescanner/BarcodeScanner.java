@@ -96,7 +96,8 @@ public class BarcodeScanner extends CordovaPlugin {
                 return true;
             }
         } else if (action.equals(SCAN)) {
-            scan();
+            String options = args.optString(0);
+            scan(options);
         } else {
             return false;
         }
@@ -106,8 +107,24 @@ public class BarcodeScanner extends CordovaPlugin {
     /**
      * Starts an intent to scan and decode a barcode.
      */
-    public void scan() {
+    public void scan(String options) {
         Intent intentScan = new Intent(SCAN_INTENT);
+        if (options != null) {
+            Log.d(LOG_TAG, "SCAN OPTIONS " + options);
+            try {
+                JSONObject opts = new JSONObject(options);
+                String scanFormats = opts.optString("SCAN_FORMATS");
+                if (scanFormats != null) {
+                    intentScan.putExtra("SCAN_FORMATS", scanFormats);
+                }
+                String scanMode = opts.optString("SCAN_MODE");
+                if (scanMode != null) {
+                    intentScan.putExtra("SCAN_MODE", scanMode);
+                }
+            } catch(JSONException je) {
+                Log.e(LOG_TAG, "SCAN OPTIONS conversion failed", je);
+            }
+        }
         intentScan.addCategory(Intent.CATEGORY_DEFAULT);
         // avoid calling other phonegap apps
         intentScan.setPackage(this.cordova.getActivity().getApplicationContext().getPackageName());

@@ -19,6 +19,8 @@ committed with an updated jar.
 
 ## Using the plugin ##
 The plugin creates the object `cordova/plugin/BarcodeScanner` with the method `scan(success, fail)`. 
+Some platforms like Android allow to add options as a third parameter:
+scan(success, fail, '{"SCAN_MODE":"QR_CODE_MODE"}') .
 
 The following barcode types are currently supported:
 ### Android
