@@ -69,8 +69,9 @@
          *        cancelled : true/false, // Was canceled.
          *    }
          * @param {Function} errorCallback
+         * @param {String} options // stringified JSON {"SCAN_MODE":"QR_CODE_MODE"}
          */
-        BarcodeScanner.prototype.scan = function (successCallback, errorCallback) {
+        BarcodeScanner.prototype.scan = function (successCallback, errorCallback, options) {
             if (errorCallback == null) {
                 errorCallback = function () {
                 };
@@ -86,7 +87,7 @@
                 return;
             }
 
-            exec(successCallback, errorCallback, 'BarcodeScanner', 'scan', []);
+            exec(successCallback, errorCallback, 'BarcodeScanner', 'scan', [options]);
         };
 
         //-------------------------------------------------------------------
