@@ -174,23 +174,17 @@
                                resultWithStatus: CDVCommandStatus_OK
                                messageAsDictionary: resultDict
                                ];
-    
-    NSString* js = [result toSuccessCallbackString:callback];
-    if (!flipped) {
-        [self writeJavascript:js];
-    }
+    [self.commandDelegate sendPluginResult:result callbackId:callback];
 }
 
 //--------------------------------------------------------------------------
 - (void)returnError:(NSString*)message callback:(NSString*)callback {
     CDVPluginResult* result = [CDVPluginResult
-                               resultWithStatus: CDVCommandStatus_OK
+                               resultWithStatus: CDVCommandStatus_ERROR
                                messageAsString: message
                                ];
     
-    NSString* js = [result toErrorCallbackString:callback];
-    
-    [self writeJavascript:js];
+    [self.commandDelegate sendPluginResult:result callbackId:callback];
 }
 
 @end
@@ -268,8 +262,8 @@ parentViewController:(UIViewController*)parentViewController
 //--------------------------------------------------------------------------
 - (void)openDialog {
     [self.parentViewController
-     presentModalViewController:self.viewController
-     animated:YES
+     presentViewController:self.viewController
+     animated:YES completion:nil
      ];
 }
 
@@ -277,7 +271,7 @@ parentViewController:(UIViewController*)parentViewController
 - (void)barcodeScanDone {
     self.capturing = NO;
     [self.captureSession stopRunning];
-    [self.parentViewController dismissModalViewControllerAnimated: YES];
+    [self.parentViewController dismissViewControllerAnimated:YES completion:nil];
     
     // viewcontroller holding onto a reference to us, release them so they
     // will release us
@@ -289,8 +283,10 @@ parentViewController:(UIViewController*)parentViewController
 
 //--------------------------------------------------------------------------
 - (void)barcodeScanSucceeded:(NSString*)text format:(NSString*)format {
-    [self barcodeScanDone];
-    [self.plugin returnSuccess:text format:format cancelled:FALSE flipped:FALSE callback:self.callback];
+    dispatch_sync(dispatch_get_main_queue(), ^{
+        [self barcodeScanDone];
+        [self.plugin returnSuccess:text format:format cancelled:FALSE flipped:FALSE callback:self.callback];
+    });
 }
 
 //--------------------------------------------------------------------------
@@ -354,7 +350,7 @@ parentViewController:(UIViewController*)parentViewController
     output.alwaysDiscardsLateVideoFrames = YES;
     output.videoSettings = videoOutputSettings;
     
-    [output setSampleBufferDelegate:self queue:dispatch_get_main_queue()];
+    [output setSampleBufferDelegate:self queue:dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0)];
     
     if (![captureSession canSetSessionPreset:AVCaptureSessionPresetMedium]) {
         return @"unable to preset medium quality video capture";
@@ -545,7 +541,7 @@ parentViewController:(UIViewController*)parentViewController
     using namespace zxing;
     
     Ref<LuminanceSource> luminanceSource (
-                                          new GreyscaleLuminanceSource(greyData, greyWidth, greyWidth, 0, 0, greyWidth, greyWidth)
+                                          new GreyscaleLuminanceSource(greyData, (int)greyWidth, (int)greyWidth, 0, 0, (int)greyWidth, (int)greyWidth)
                                           );
     
     return luminanceSource;
@@ -587,7 +583,7 @@ parentViewController:(UIViewController*)parentViewController
     size_t height      = CVPixelBufferGetHeight(imageBuffer);
     
     uint8_t* baseAddress    = (uint8_t*) CVPixelBufferGetBaseAddress(imageBuffer);
-    int      length         = height * bytesPerRow;
+    int      length         = (int)(height * bytesPerRow);
     uint8_t* newBaseAddress = (uint8_t*) malloc(length);
     memcpy(newBaseAddress, baseAddress, length);
     baseAddress = newBaseAddress;
@@ -671,8 +667,8 @@ parentViewController:(UIViewController*)parentViewController
     previewLayer.frame = self.view.bounds;
     previewLayer.videoGravity = AVLayerVideoGravityResizeAspectFill;
     
-    if ([previewLayer isOrientationSupported]) {
-        [previewLayer setOrientation:AVCaptureVideoOrientationPortrait];
+    if ([previewLayer.connection isVideoOrientationSupported]) {
+        [previewLayer.connection setVideoOrientation:AVCaptureVideoOrientationPortrait];
     }
     
     [self.view.layer insertSublayer:previewLayer below:[[self.view.layer sublayers] objectAtIndex:0]];
@@ -684,7 +680,7 @@ parentViewController:(UIViewController*)parentViewController
 - (void)viewWillAppear:(BOOL)animated {
     
     // set video orientation to what the camera sees
-    self.processor.previewLayer.orientation = [[UIApplication sharedApplication] statusBarOrientation];
+    self.processor.previewLayer.connection.videoOrientation = [[UIApplication sharedApplication] statusBarOrientation];
     
     // this fixes the bug when the statusbar is landscape, and the preview layer
     // starts up in portrait (not filling the whole view)
@@ -894,7 +890,7 @@ parentViewController:(UIViewController*)parentViewController
 {
     [CATransaction begin];
     
-    self.processor.previewLayer.orientation = orientation;
+    self.processor.previewLayer.connection.videoOrientation = orientation;
     [self.processor.previewLayer layoutSublayers];
     self.processor.previewLayer.frame = self.view.bounds;
     
