@@ -22,8 +22,10 @@ module.exports = {
             capturePreviewAlignmentMark,
             captureCancelButton,
             capture,
-            reader;
-        
+            reader,
+            baseButtonStyle = "border-width: 0px; display: block; margin: 20px; font-weight:bold; height: 40px; width:100px; border-radius: 10px; color:#666666; background-color:#f9f9f9;",
+            hoverButtonStyle = "border-width: 0px; display: block; margin: 20px; font-weight:bold; height: 40px; width:100px; border-radius: 10px; color:#666666; background-color:#e9e9e9;";
+
         /**
          * Creates a preview frame and necessary objects
          */
@@ -39,8 +41,10 @@ module.exports = {
             // Create cancel button
             captureCancelButton = document.createElement("button");
             captureCancelButton.innerText = "Cancel";
-            captureCancelButton.style.cssText = "position: absolute; right: 0; bottom: 0; display: block; margin: 20px";
+            captureCancelButton.style.cssText = "position: absolute; right: 0; bottom: 0; " + baseButtonStyle;
             captureCancelButton.addEventListener('click', cancelPreview, false);
+            captureCancelButton.addEventListener('mouseenter', function () { captureCancelButton.style.cssText = "position: absolute; right: 0; bottom: 0; " + hoverButtonStyle; }, false);
+            captureCancelButton.addEventListener('mouseleave', function () { captureCancelButton.style.cssText = "position: absolute; right: 0; bottom: 0; " + baseButtonStyle; }, false);
 
             capture = new Windows.Media.Capture.MediaCapture();
         }
@@ -57,17 +61,21 @@ module.exports = {
                 //trying to set focus mode
                 var controller = capture.videoDeviceController;
 
-                if (controller.focusControl && controller.focusControl.supported) {
-                    if (controller.focusControl.configure) {
+                if (controller.focusControl && controller.focusControl.supported)
+                {
+                    if (controller.focusControl.configure)
+                    {
                         var focusConfig = new Windows.Media.Devices.FocusSettings();
                         focusConfig.autoFocusRange = Windows.Media.Devices.AutoFocusRange.macro;
 
                         var supportContinuousFocus = controller.focusControl.supportedFocusModes.indexOf(Windows.Media.Devices.FocusMode.continuous).returnValue;
                         var supportAutoFocus = controller.focusControl.supportedFocusModes.indexOf(Windows.Media.Devices.FocusMode.auto).returnValue;
 
-                        if (supportContinuousFocus) {
+                        if (supportContinuousFocus)
+                        {
                             focusConfig.mode = Windows.Media.Devices.FocusMode.continuous;
-                        } else if (supportAutoFocus) {                        
+                        } else if (supportAutoFocus)
+                        {
                             focusConfig.mode = Windows.Media.Devices.FocusMode.auto;
                         }
 
@@ -91,7 +99,8 @@ module.exports = {
 
                 controller.setMediaStreamPropertiesAsync(Windows.Media.Capture.MediaStreamType.videoRecord, maxResProps).done(function () {
                     // handle portrait orientation
-                    if (Windows.Graphics.Display.DisplayProperties.nativeOrientation == Windows.Graphics.Display.DisplayOrientations.portrait) {
+                    if (Windows.Graphics.Display.DisplayProperties.nativeOrientation == Windows.Graphics.Display.DisplayOrientations.portrait)
+                    {
                         capture.setPreviewRotation(Windows.Media.Capture.VideoRotation.clockwise90Degrees);
                         capturePreview.msZoom = true;
                     }
@@ -103,6 +112,7 @@ module.exports = {
                     document.body.appendChild(capturePreview);
                     document.body.appendChild(capturePreviewAlignmentMark);
                     document.body.appendChild(captureCancelButton);
+
 
                     startBarcodeSearch(maxResProps.width, maxResProps.height);
                 });
@@ -137,7 +147,7 @@ module.exports = {
             [capturePreview, capturePreviewAlignmentMark, captureCancelButton].forEach(function (elem) {
                 elem && document.body.removeChild(elem);
             });
-            
+
             reader && reader.stop();
             reader = null;
 
@@ -152,11 +162,13 @@ module.exports = {
         function cancelPreview() {
             reader && reader.stop();
         }
-        
-        try {
+
+        try
+        {
             createPreview();
             startPreview();
-        } catch (ex) {
+        } catch (ex)
+        {
             fail(ex);
         }
     },
