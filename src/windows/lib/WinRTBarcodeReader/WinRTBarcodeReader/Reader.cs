@@ -99,7 +99,8 @@ namespace WinRTBarcodeReader
         /// </summary>
         public void Stop()
         {
-            this.cancelSearch.Cancel();
+            this.barcodeFoundOrCancelled = true;
+            this.cancelSearch.Cancel();            
         }
 
         #endregion

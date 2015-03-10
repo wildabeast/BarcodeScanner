@@ -21,10 +21,77 @@ module.exports = {
         var capturePreview,
             capturePreviewAlignmentMark,
             captureCancelButton,
+            captureCameraButton,
             capture,
             reader,
+            cameras = [],
+            selectedCamera,
             baseButtonStyle = "border-width: 0px; display: block; margin: 20px; font-weight:bold; height: 40px; width:100px; border-radius: 10px; color:#666666; background-color:#f9f9f9;",
             hoverButtonStyle = "border-width: 0px; display: block; margin: 20px; font-weight:bold; height: 40px; width:100px; border-radius: 10px; color:#666666; background-color:#e9e9e9;";
+
+        /*
+         * Retrives the list of available cameras and return the selected device
+         */
+        function getCamera() {
+            return new WinJS.Promise(function (c, e) {
+                var deviceInfo = Windows.Devices.Enumeration.DeviceInformation;
+                return deviceInfo.findAllAsync(Windows.Devices.Enumeration.DeviceClass.videoCapture).then(function (devices) {
+                    if (devices.length > 0)
+                    {
+                        selectedCamera = devices[0]
+                        for (var i = 0; i < devices.length; i++)
+                        {
+                            var device = devices[i];
+                            cameras.push(device);
+                        }
+                        c(selectedCamera); // Return the camera
+                    }
+                    else
+                    {
+                        c(); // No cameras found
+                    }
+                },
+                function (error) {
+                    e(error); // Return the error
+                });
+
+            });
+        }
+
+
+        /*
+        * Switch to the next available camera in the array
+        */
+        function switchCamera() {
+            if (cameras.length > 1)
+            {
+                var nextCamera;
+                var cameraCount = cameras.length;
+                for (var i = 0; i < cameraCount; i++)
+                {
+                    var cam = cameras[i];
+                    if (cam.id.toLowerCase() === selectedCamera.id.toLowerCase())
+                    {
+                        if (i == (cameraCount - 1))
+                        {
+                            nextCamera = cameras[0];
+                        } else
+                        {
+                            nextCamera = cameras[i + 1];
+                        }
+                        break;
+                    }
+                }
+                if (nextCamera)
+                {
+                    destroyPreview();
+                    selectedCamera = nextCamera;
+                    createPreview();
+                    startPreview(selectedCamera);
+                }
+            }
+        }
+
 
         /**
          * Creates a preview frame and necessary objects
@@ -46,15 +113,28 @@ module.exports = {
             captureCancelButton.addEventListener('mouseenter', function () { captureCancelButton.style.cssText = "position: absolute; right: 0; bottom: 0; " + hoverButtonStyle; }, false);
             captureCancelButton.addEventListener('mouseleave', function () { captureCancelButton.style.cssText = "position: absolute; right: 0; bottom: 0; " + baseButtonStyle; }, false);
 
+            // Create switch camera button
+            captureCameraButton = document.createElement("button");
+            captureCameraButton.innerText = "Camera";
+            captureCameraButton.style.cssText = captureCameraButton.style.cssText = "position: absolute; left: 0; bottom: 0; " + baseButtonStyle;
+            captureCameraButton.addEventListener('mouseenter', function () { captureCameraButton.style.cssText = "position: absolute; left: 0; bottom: 0; " + hoverButtonStyle; }, false);
+            captureCameraButton.addEventListener('mouseleave', function () { captureCameraButton.style.cssText = "position: absolute; left: 0; bottom: 0; " + baseButtonStyle; }, false);
+            captureCameraButton.addEventListener('click', switchCamera, false);
+
             capture = new Windows.Media.Capture.MediaCapture();
         }
 
         /**
          * Starts stream transmission to preview frame and then run barcode search
          */
-        function startPreview() {
+        function startPreview(camera) {
+
             var captureSettings = new Windows.Media.Capture.MediaCaptureInitializationSettings();
             captureSettings.streamingCaptureMode = Windows.Media.Capture.StreamingCaptureMode.video;
+
+            captureSettings.videoDeviceId = camera.id;
+
+
 
             capture.initializeAsync(captureSettings).done(function () {
 
@@ -112,11 +192,12 @@ module.exports = {
                     document.body.appendChild(capturePreview);
                     document.body.appendChild(capturePreviewAlignmentMark);
                     document.body.appendChild(captureCancelButton);
-
+                    document.body.appendChild(captureCameraButton);
 
                     startBarcodeSearch(maxResProps.width, maxResProps.height);
                 });
             });
+
         }
 
         /**
@@ -128,6 +209,7 @@ module.exports = {
             reader = new WinRTBarcodeReader.Reader();
             reader.init(capture, width, height);
             reader.readCode().done(function (result) {
+                if (!result) return; // if we got nothing back then we had canceled rather than found something
                 destroyPreview();
                 success({ text: result && result.text, format: result && result.barcodeFormat, cancelled: !result });
             }, function (err) {
@@ -144,7 +226,7 @@ module.exports = {
             capturePreview.pause();
             capturePreview.src = null;
 
-            [capturePreview, capturePreviewAlignmentMark, captureCancelButton].forEach(function (elem) {
+            [capturePreview, capturePreviewAlignmentMark, captureCancelButton, captureCameraButton].forEach(function (elem) {
                 elem && document.body.removeChild(elem);
             });
 
@@ -165,8 +247,13 @@ module.exports = {
 
         try
         {
-            createPreview();
-            startPreview();
+            getCamera().then(function (camera) {
+                createPreview();
+                startPreview(camera);
+            },
+            function (error) {
+                fail(error);
+            });
         } catch (ex)
         {
             fail(ex);
