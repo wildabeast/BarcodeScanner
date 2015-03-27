@@ -213,10 +213,7 @@
                                messageAsDictionary: resultDict
                                ];
     
-    NSString* js = [result toSuccessCallbackString:callback];
-    if (!flipped) {
-        [self writeJavascript:js];
-    }
+    [[self commandDelegate] sendPluginResult:result callbackId:callback];
 }
 
 //--------------------------------------------------------------------------
@@ -226,9 +223,7 @@
                                messageAsString: message
                                ];
     
-    NSString* js = [result toErrorCallbackString:callback];
-    
-    [self writeJavascript:js];
+    [[self commandDelegate] sendPluginResult:result callbackId:callback];
 }
 
 @end
