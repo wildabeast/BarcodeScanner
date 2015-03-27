@@ -15,13 +15,11 @@
 // use the all-in-one version of zxing that we built
 //------------------------------------------------------------------------------
 #import "zxing-all-in-one.h"
-
 #import <Cordova/CDVPlugin.h>
 
 
 //------------------------------------------------------------------------------
 // Delegate to handle orientation functions
-// 
 //------------------------------------------------------------------------------
 @protocol CDVBarcodeScannerOrientationDelegate <NSObject>
 
@@ -48,6 +46,7 @@
 - (NSString*)isScanNotPossible;
 - (void)scan:(CDVInvokedUrlCommand*)command;
 - (void)encode:(CDVInvokedUrlCommand*)command;
+- (void)returnImage:(NSString*)filePath format:(NSString*)format callback:(NSString*)callback;
 - (void)returnSuccess:(NSString*)scannedText format:(NSString*)format cancelled:(BOOL)cancelled flipped:(BOOL)flipped callback:(NSString*)callback;
 - (void)returnError:(NSString*)message callback:(NSString*)callback;
 @end
@@ -83,6 +82,19 @@
 - (zxing::Ref<zxing::LuminanceSource>) getLuminanceSourceFromSample:(CMSampleBufferRef)sampleBuffer imageBytes:(uint8_t**)ptr;
 - (UIImage*) getImageFromLuminanceSource:(zxing::LuminanceSource*)luminanceSource;
 - (void)dumpImage:(UIImage*)image;
+@end
+
+//------------------------------------------------------------------------------
+// Qr encoder processor
+//------------------------------------------------------------------------------
+@interface CDVqrProcessor: NSObject
+@property (nonatomic, retain) CDVBarcodeScanner*          plugin;
+@property (nonatomic, retain) NSString*                   callback;
+@property (nonatomic, retain) NSString*                   stringToEncode;
+@property                     NSInteger                   size;
+
+- (id)initWithPlugin:(CDVBarcodeScanner*)plugin callback:(NSString*)callback stringToEncode:(NSString*)stringToEncode;
+- (void)generateImage;
 @end
 
 //------------------------------------------------------------------------------
@@ -130,7 +142,7 @@
     
     callback = command.callbackId;
     
-    // We allow the user to define an alternate xib file for loading the overlay. 
+    // We allow the user to define an alternate xib file for loading the overlay.
     NSString *overlayXib = nil;
     if ( [command.arguments count] >= 1 )
     {
@@ -158,7 +170,37 @@
 
 //--------------------------------------------------------------------------
 - (void)encode:(CDVInvokedUrlCommand*)command {
-    [self returnError:@"encode function not supported" callback:command.callbackId];
+    if([command.arguments count] < 1)
+        [self returnError:@"Too few arguments!" callback:command.callbackId];
+    
+    CDVqrProcessor* processor;
+    NSString*       callback;
+    callback = command.callbackId;
+    
+    processor = [[CDVqrProcessor alloc]
+                 initWithPlugin:self
+                 callback:callback
+                 stringToEncode: command.arguments[0][@"data"]
+                 ];
+    
+    [processor retain];
+    [processor retain];
+    [processor retain];
+    // queue [processor generateImage] to run on the event loop
+    [processor performSelector:@selector(generateImage) withObject:nil afterDelay:0];
+}
+
+- (void)returnImage:(NSString*)filePath format:(NSString*)format callback:(NSString*)callback{
+    NSMutableDictionary* resultDict = [[[NSMutableDictionary alloc] init] autorelease];
+    [resultDict setObject:format forKey:@"format"];
+    [resultDict setObject:filePath forKey:@"file"];
+    
+    CDVPluginResult* result = [CDVPluginResult
+                               resultWithStatus: CDVCommandStatus_OK
+                               messageAsDictionary:resultDict
+                               ];
+    
+    [[self commandDelegate] sendPluginResult:result callbackId:callback];
 }
 
 //--------------------------------------------------------------------------
@@ -175,10 +217,7 @@
                                messageAsDictionary: resultDict
                                ];
     
-    NSString* js = [result toSuccessCallbackString:callback];
-    if (!flipped) {
-        [self writeJavascript:js];
-    }
+    [[self commandDelegate] sendPluginResult:result callbackId:callback];
 }
 
 //--------------------------------------------------------------------------
@@ -188,9 +227,7 @@
                                messageAsString: message
                                ];
     
-    NSString* js = [result toErrorCallbackString:callback];
-    
-    [self writeJavascript:js];
+    [[self commandDelegate] sendPluginResult:result callbackId:callback];
 }
 
 @end
@@ -268,8 +305,9 @@ parentViewController:(UIViewController*)parentViewController
 //--------------------------------------------------------------------------
 - (void)openDialog {
     [self.parentViewController
-     presentModalViewController:self.viewController
+     presentViewController:self.viewController
      animated:YES
+     completion:nil
      ];
 }
 
@@ -277,7 +315,7 @@ parentViewController:(UIViewController*)parentViewController
 - (void)barcodeScanDone {
     self.capturing = NO;
     [self.captureSession stopRunning];
-    [self.parentViewController dismissModalViewControllerAnimated: YES];
+    [self.parentViewController dismissViewControllerAnimated: YES completion:nil];
     
     // viewcontroller holding onto a reference to us, release them so they
     // will release us
@@ -324,9 +362,9 @@ parentViewController:(UIViewController*)parentViewController
     AVCaptureSession* captureSession = [[[AVCaptureSession alloc] init] autorelease];
     self.captureSession = captureSession;
     
-       AVCaptureDevice* __block device = nil;
+    AVCaptureDevice* __block device = nil;
     if (self.isFrontCamera) {
-    
+        
         NSArray* devices = [AVCaptureDevice devicesWithMediaType:AVMediaTypeVideo];
         [devices enumerateObjectsUsingBlock:^(AVCaptureDevice *obj, NSUInteger idx, BOOL *stop) {
             if (obj.position == AVCaptureDevicePositionFront) {
@@ -338,7 +376,7 @@ parentViewController:(UIViewController*)parentViewController
         if (!device) return @"unable to obtain video capture device";
         
     }
-
+    
     
     AVCaptureDeviceInput* input = [AVCaptureDeviceInput deviceInputWithDevice:device error:&error];
     if (!input) return @"unable to obtain video capture device input";
@@ -632,6 +670,84 @@ parentViewController:(UIViewController*)parentViewController
 @end
 
 //------------------------------------------------------------------------------
+// qr encoder processor
+//------------------------------------------------------------------------------
+@implementation CDVqrProcessor
+@synthesize plugin               = _plugin;
+@synthesize callback             = _callback;
+@synthesize stringToEncode       = _stringToEncode;
+@synthesize size                 = _size;
+
+- (id)initWithPlugin:(CDVBarcodeScanner*)plugin callback:(NSString*)callback stringToEncode:(NSString*)stringToEncode{
+    self = [super init];
+    if (!self) return self;
+    
+    self.plugin          = plugin;
+    self.callback        = callback;
+    self.stringToEncode  = stringToEncode;
+    self.size            = 300;
+    
+    return self;
+}
+
+//--------------------------------------------------------------------------
+- (void)dealloc {
+    self.plugin = nil;
+    self.callback = nil;
+    self.stringToEncode = nil;
+    
+    [super dealloc];
+}
+//--------------------------------------------------------------------------
+- (void)generateImage{
+    /* setup qr filter */
+    CIFilter *filter = [CIFilter filterWithName:@"CIQRCodeGenerator"];
+    [filter setDefaults];
+    
+    /* set filter's input message
+     * the encoding string has to be convert to a UTF-8 encoded NSData object */
+    [filter setValue:[self.stringToEncode dataUsingEncoding:NSUTF8StringEncoding]
+              forKey:@"inputMessage"];
+    
+    /* on ios >= 7.0  set low image error correction level */
+    if (floor(NSFoundationVersionNumber) >= NSFoundationVersionNumber_iOS_7_0)
+        [filter setValue:@"L" forKey:@"inputCorrectionLevel"];
+    
+    /* prepare cgImage */
+    CIImage *outputImage = [filter outputImage];
+    CIContext *context = [CIContext contextWithOptions:nil];
+    CGImageRef cgImage = [context createCGImage:outputImage
+                                       fromRect:[outputImage extent]];
+    
+    /* returned qr code image */
+    UIImage *qrImage = [UIImage imageWithCGImage:cgImage
+                                           scale:1.
+                                     orientation:UIImageOrientationUp];
+    /* resize generated image */
+    CGFloat width = _size;
+    CGFloat height = _size;
+    
+    UIGraphicsBeginImageContext(CGSizeMake(width, height));
+    
+    CGContextRef ctx = UIGraphicsGetCurrentContext();
+    CGContextSetInterpolationQuality(ctx, kCGInterpolationNone);
+    [qrImage drawInRect:CGRectMake(0, 0, width, height)];
+    qrImage = UIGraphicsGetImageFromCurrentImageContext();
+    
+    /* clean up */
+    UIGraphicsEndImageContext();
+    CGImageRelease(cgImage);
+    
+    /* save image to file */
+    NSString* filePath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"tmpqrcode.jpeg"];
+    [UIImageJPEGRepresentation(qrImage, 1.0) writeToFile:filePath atomically:YES];
+    
+    /* return file path back to cordova */
+    [self.plugin returnImage:filePath format:@"QR_CODE" callback: self.callback];
+}
+@end
+
+//------------------------------------------------------------------------------
 // view controller for the ui
 //------------------------------------------------------------------------------
 @implementation CDVbcsViewController
@@ -658,7 +774,7 @@ parentViewController:(UIViewController*)parentViewController
 //    self.processor = nil;
     self.shutterPressed = NO;
     self.alternateXib = nil;
-    self.overlayView = nil;      
+    self.overlayView = nil;
     [super dealloc];
 }
 
@@ -671,8 +787,8 @@ parentViewController:(UIViewController*)parentViewController
     previewLayer.frame = self.view.bounds;
     previewLayer.videoGravity = AVLayerVideoGravityResizeAspectFill;
     
-    if ([previewLayer isOrientationSupported]) {
-        [previewLayer setOrientation:AVCaptureVideoOrientationPortrait];
+    if ([previewLayer.connection isVideoOrientationSupported]) {
+        [previewLayer.connection setVideoOrientation:AVCaptureVideoOrientationPortrait];
     }
     
     [self.view.layer insertSublayer:previewLayer below:[[self.view.layer sublayers] objectAtIndex:0]];
@@ -684,7 +800,7 @@ parentViewController:(UIViewController*)parentViewController
 - (void)viewWillAppear:(BOOL)animated {
     
     // set video orientation to what the camera sees
-    self.processor.previewLayer.orientation = [[UIApplication sharedApplication] statusBarOrientation];
+    self.processor.previewLayer.connection.videoOrientation = [[UIApplication sharedApplication] statusBarOrientation];
     
     // this fixes the bug when the statusbar is landscape, and the preview layer
     // starts up in portrait (not filling the whole view)
@@ -719,7 +835,7 @@ parentViewController:(UIViewController*)parentViewController
 }
 
 //--------------------------------------------------------------------------
-- (UIView *)buildOverlayViewFromXib 
+- (UIView *)buildOverlayViewFromXib
 {
     [[NSBundle mainBundle] loadNibNamed:self.alternateXib owner:self options:NULL];
     
@@ -729,7 +845,7 @@ parentViewController:(UIViewController*)parentViewController
         return nil;
     }
     
-    return self.overlayView;        
+    return self.overlayView;
 }
 
 //--------------------------------------------------------------------------
@@ -764,11 +880,11 @@ parentViewController:(UIViewController*)parentViewController
                     ];
     
     id flipCamera = [[[UIBarButtonItem alloc] autorelease]
-                       initWithBarButtonSystemItem:UIBarButtonSystemItemCamera
-                       target:(id)self
-                       action:@selector(flipCameraButtonPressed:)
-                       ];
-
+                     initWithBarButtonSystemItem:UIBarButtonSystemItemCamera
+                     target:(id)self
+                     action:@selector(flipCameraButtonPressed:)
+                     ];
+    
     
 #if USE_SHUTTER
     id shutterButton = [[UIBarButtonItem alloc]
@@ -867,7 +983,7 @@ parentViewController:(UIViewController*)parentViewController
 #pragma mark CDVBarcodeScannerOrientationDelegate
 
 - (BOOL)shouldAutorotate
-{   
+{
     return NO;
 }
 
@@ -894,7 +1010,7 @@ parentViewController:(UIViewController*)parentViewController
 {
     [CATransaction begin];
     
-    self.processor.previewLayer.orientation = orientation;
+    self.processor.previewLayer.connection.videoOrientation = orientation;
     [self.processor.previewLayer layoutSublayers];
     self.processor.previewLayer.frame = self.view.bounds;
     
