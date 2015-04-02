@@ -254,14 +254,46 @@ SystemSoundID _soundFileObject;
 - (id)initWithPlugin:(CDVBarcodeScanner*)plugin
             callback:(NSString*)callback
 parentViewController:(UIViewController*)parentViewController
-  alterateOverlayXib:(NSString *)alternateXib {
+  alterateOverlayXib:(NSObject *)config {
     self = [super init];
     if (!self) return self;
     
     self.plugin               = plugin;
     self.callback             = callback;
     self.parentViewController = parentViewController;
-    self.alternateXib         = alternateXib;
+    
+    // use configuration options to set path for an alternate overlay Xib
+    if([config isKindOfClass:[NSString class]]) {
+        
+        self.alternateXib = (NSString *)config;
+        
+    } else if([config isKindOfClass:[NSDictionary class]]) {
+    
+        NSDictionary *dict = (NSDictionary *)config;
+        NSArray *keys = [dict allKeys];
+        NSString *keyname;
+        NSObject *keyvalue;
+        NSString *keyvaluestr;
+        NSNumber *keyvaluenum;
+    
+        for(int i=0; i<[keys count]; i++) {
+            keyname = [keys objectAtIndex:i];
+            keyvalue = [dict objectForKey:keyname];
+        
+            if([keyvalue isKindOfClass:[NSString class]]) {
+                keyvaluestr = (NSString *)keyvalue;
+            } else if([keyvalue isKindOfClass:[NSNumber class]]) {
+                keyvaluenum = (NSNumber *)keyvalue;
+            }
+
+            // Add additional configuration options here //
+        
+            if([keyname isEqualToString:@"alternateXib"]) {
+                self.alternateXib = keyvaluestr;
+            }
+        }
+
+    }
     
     self.is1D      = YES;
     self.is2D      = YES;
@@ -844,7 +876,11 @@ parentViewController:(UIViewController*)parentViewController
 //--------------------------------------------------------------------------
 - (UIView *)buildOverlayViewFromXib
 {
-    [[NSBundle mainBundle] loadNibNamed:self.alternateXib owner:self options:NULL];
+    @try {
+        [[NSBundle mainBundle] loadNibNamed:self.alternateXib owner:self options:NULL];
+    } @catch(NSException *e) {
+        NSLog(@"Exception: %@", e);
+    }
     
     if ( self.overlayView == nil )
     {
