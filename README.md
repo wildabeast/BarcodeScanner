@@ -126,10 +126,10 @@ A full example could be:
 ```
 
 ## Windows8 quirks ##
-Windows 8 implenemtation currently doesn't support encode functionality.
+Windows 8 implementation currently doesn't support encode functionality.
 
 ## Windows Phone 8 quirks ##
-Windows Phone 8 implenemtation currently doesn't support encode functionality.
+Windows Phone 8 implementation currently doesn't support encode functionality.
 
 ## Thanks on Github ##
 
