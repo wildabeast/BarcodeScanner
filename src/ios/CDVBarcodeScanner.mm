@@ -31,6 +31,12 @@
 @end
 
 //------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+
+#define CLEANUP_REFERENCES !__has_feature(objc_arc)
+
+//------------------------------------------------------------------------------
 // Adds a shutter button to the UI, and changes the scan from continuous to
 // only performing a scan when you click the shutter button.  For testing.
 //------------------------------------------------------------------------------
@@ -162,9 +168,11 @@
                  parentViewController:self.viewController
                  alterateOverlayXib:overlayXib
                  ];
+    #if CLEANUP_REFERENCES    
     [processor retain];
     [processor retain];
     [processor retain];
+    #endif
     // queue [processor scanBarcode] to run on the event loop
     [processor performSelector:@selector(scanBarcode) withObject:nil afterDelay:0];
 }
@@ -184,15 +192,22 @@
                  stringToEncode: command.arguments[0][@"data"]
                  ];
     
+    #if CLEANUP_REFERENCES    
     [processor retain];
     [processor retain];
     [processor retain];
+    #endif
     // queue [processor generateImage] to run on the event loop
     [processor performSelector:@selector(generateImage) withObject:nil afterDelay:0];
 }
 
 - (void)returnImage:(NSString*)filePath format:(NSString*)format callback:(NSString*)callback{
+    #if CLEANUP_REFERENCES    
     NSMutableDictionary* resultDict = [[[NSMutableDictionary alloc] init] autorelease];
+    #else
+    NSMutableDictionary* resultDict = [[NSMutableDictionary alloc] init];
+    #endif
+
     [resultDict setObject:format forKey:@"format"];
     [resultDict setObject:filePath forKey:@"file"];
     
@@ -288,7 +303,9 @@ parentViewController:(UIViewController*)parentViewController
     AudioServicesRemoveSystemSoundCompletion(_soundFileObject);
     AudioServicesDisposeSystemSoundID(_soundFileObject);
     
+    #if CLEANUP_REFERENCES    
     [super dealloc];
+    #endif
 }
 
 //--------------------------------------------------------------------------
@@ -703,7 +720,9 @@ parentViewController:(UIViewController*)parentViewController
     self.callback = nil;
     self.stringToEncode = nil;
     
+    #if CLEANUP_REFERENCES    
     [super dealloc];
+    #endif
 }
 //--------------------------------------------------------------------------
 - (void)generateImage{
@@ -782,7 +801,9 @@ parentViewController:(UIViewController*)parentViewController
     self.shutterPressed = NO;
     self.alternateXib = nil;
     self.overlayView = nil;
+    #if CLEANUP_REFERENCES    
     [super dealloc];
+    #endif
 }
 
 //--------------------------------------------------------------------------
