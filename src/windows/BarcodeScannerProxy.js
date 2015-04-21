@@ -1,5 +1,4 @@
-/*
- * Copyright (c) Microsoft Open Technologies, Inc. All rights reserved.
+/* * Copyright (c) Microsoft Open Technologies, Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
  *
@@ -9,253 +8,141 @@
  */
 
 module.exports = {
-
     /**
-     * Scans image via device camera and retieves barcode from it.
+     * Scans image via device camera and retrieves barcode from it.
      * @param  {function} success Success callback
      * @param  {function} fail    Error callback
      * @param  {array} args       Arguments array
      */
     scan: function (success, fail, args) {
-
-        var capturePreview,
+        var reader,
+            capturePreview,
+            captureContainer,
             capturePreviewAlignmentMark,
             captureCancelButton,
             captureCameraButton,
-            capture,
-            reader,
-            cameras = [],
-            selectedCamera,
+            cancelCapture = false,
             baseButtonStyle = "border-width: 0px; display: block; margin: 20px; font-weight:bold; height: 40px; width:100px; border-radius: 10px; color:#666666; background-color:#f9f9f9;",
             hoverButtonStyle = "border-width: 0px; display: block; margin: 20px; font-weight:bold; height: 40px; width:100px; border-radius: 10px; color:#666666; background-color:#e9e9e9;";
 
-        /*
-         * Retrives the list of available cameras and return the selected device
-         */
-        function getCamera() {
-            return new WinJS.Promise(function (c, e) {
-                var deviceInfo = Windows.Devices.Enumeration.DeviceInformation;
-                return deviceInfo.findAllAsync(Windows.Devices.Enumeration.DeviceClass.videoCapture).then(function (devices) {
-                    if (devices.length > 0)
-                    {
-                        selectedCamera = devices[0]
-                        for (var i = 0; i < devices.length; i++)
-                        {
-                            var device = devices[i];
-                            cameras.push(device);
-                        }
-                        c(selectedCamera); // Return the camera
-                    }
-                    else
-                    {
-                        c(); // No cameras found
-                    }
-                },
-                function (error) {
-                    e(error); // Return the error
-                });
-
-            });
-        }
-
-
-        /*
-        * Switch to the next available camera in the array
+        /**
+        * Stops scanning/preview (does not destroy UI objects)
         */
-        function switchCamera() {
-            if (cameras.length > 1)
-            {
-                var nextCamera;
-                var cameraCount = cameras.length;
-                for (var i = 0; i < cameraCount; i++)
-                {
-                    var cam = cameras[i];
-                    if (cam.id.toLowerCase() === selectedCamera.id.toLowerCase())
-                    {
-                        if (i == (cameraCount - 1))
-                        {
-                            nextCamera = cameras[0];
-                        } else
-                        {
-                            nextCamera = cameras[i + 1];
-                        }
-                        break;
-                    }
-                }
-                if (nextCamera)
-                {
-                    destroyPreview();
-                    selectedCamera = nextCamera;
-                    createPreview();
-                    startPreview(selectedCamera);
-                }
-            }
-        }
+        function cancelPreview() {
+            // Cancel the capture process
+            cancelCapture = true;
 
+            // Stop displaying the video stream
+            capturePreview.pause();
+            capturePreview.src = null;
+        }
 
         /**
-         * Creates a preview frame and necessary objects
-         */
+        * Creates the video preview UI including cancelation and camera switching options
+        */
         function createPreview() {
+            // Overlay a DIV to hold all the preview content
+            captureContainer = document.createElement("div");
+            captureContainer.style.cssText = "position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: black; text-align: center; vertical-align: middle;";
 
-            // Create fullscreen preview
+            // Video Preview control
             capturePreview = document.createElement("video");
-            capturePreview.style.cssText = "position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: black";
+            capturePreview.style.cssText = "position: absolute;  left: 0; top: 0; width: 100%; height: 100%; ";
 
+            // Overlay an alignment mark to provide visual queue
             capturePreviewAlignmentMark = document.createElement('div');
-            capturePreviewAlignmentMark.style.cssText = "position: absolute; left: 0; top: 50%; width: 100%; height: 3px; background: red";
+            capturePreviewAlignmentMark.style.cssText = "position: absolute; left: 0; top: 50%; width: 100%; height: 3px; background: blue";
 
-            // Create cancel button
+            // Add Cancel Button
             captureCancelButton = document.createElement("button");
             captureCancelButton.innerText = "Cancel";
             captureCancelButton.style.cssText = "position: absolute; right: 0; bottom: 0; " + baseButtonStyle;
-            captureCancelButton.addEventListener('click', cancelPreview, false);
-            captureCancelButton.addEventListener('mouseenter', function () { captureCancelButton.style.cssText = "position: absolute; right: 0; bottom: 0; " + hoverButtonStyle; }, false);
-            captureCancelButton.addEventListener('mouseleave', function () { captureCancelButton.style.cssText = "position: absolute; right: 0; bottom: 0; " + baseButtonStyle; }, false);
 
-            // Create switch camera button
+            // Add Switch Camera Button
             captureCameraButton = document.createElement("button");
             captureCameraButton.innerText = "Camera";
             captureCameraButton.style.cssText = captureCameraButton.style.cssText = "position: absolute; left: 0; bottom: 0; " + baseButtonStyle;
-            captureCameraButton.addEventListener('mouseenter', function () { captureCameraButton.style.cssText = "position: absolute; left: 0; bottom: 0; " + hoverButtonStyle; }, false);
-            captureCameraButton.addEventListener('mouseleave', function () { captureCameraButton.style.cssText = "position: absolute; left: 0; bottom: 0; " + baseButtonStyle; }, false);
+
+            // Add click events for Cancel and Switch Camera
+            captureCancelButton.addEventListener('click', cancelPreview, false);
             captureCameraButton.addEventListener('click', switchCamera, false);
 
-            capture = new Windows.Media.Capture.MediaCapture();
+            // Add mouse over events to comply with Modern UI validation requirements
+            captureCancelButton.addEventListener('mouseenter', function () { captureCancelButton.style.cssText = "position: absolute; right: 0; bottom: 0; " + hoverButtonStyle; }, false);
+            captureCancelButton.addEventListener('mouseleave', function () { captureCancelButton.style.cssText = "position: absolute; right: 0; bottom: 0; " + baseButtonStyle; }, false);
+            captureCameraButton.addEventListener('mouseenter', function () { captureCameraButton.style.cssText = "position: absolute; left: 0; bottom: 0; " + hoverButtonStyle; }, false);
+            captureCameraButton.addEventListener('mouseleave', function () { captureCameraButton.style.cssText = "position: absolute; left: 0; bottom: 0; " + baseButtonStyle; }, false);
+
+            // Add the preview content to the current document
+            document.body.appendChild(captureContainer);
+            captureContainer.appendChild(capturePreview);
+            captureContainer.appendChild(capturePreviewAlignmentMark);
+            captureContainer.appendChild(captureCancelButton);
+            captureContainer.appendChild(captureCameraButton);
         }
 
         /**
-         * Starts stream transmission to preview frame and then run barcode search
-         */
-        function startPreview(camera) {
-
-            var captureSettings = new Windows.Media.Capture.MediaCaptureInitializationSettings();
-            captureSettings.streamingCaptureMode = Windows.Media.Capture.StreamingCaptureMode.video;
-
-            captureSettings.videoDeviceId = camera.id;
-
-
-
-            capture.initializeAsync(captureSettings).done(function () {
-
-                //trying to set focus mode
-                var controller = capture.videoDeviceController;
-
-                if (controller.focusControl && controller.focusControl.supported)
-                {
-                    if (controller.focusControl.configure)
-                    {
-                        var focusConfig = new Windows.Media.Devices.FocusSettings();
-                        focusConfig.autoFocusRange = Windows.Media.Devices.AutoFocusRange.macro;
-
-                        var supportContinuousFocus = controller.focusControl.supportedFocusModes.indexOf(Windows.Media.Devices.FocusMode.continuous).returnValue;
-                        var supportAutoFocus = controller.focusControl.supportedFocusModes.indexOf(Windows.Media.Devices.FocusMode.auto).returnValue;
-
-                        if (supportContinuousFocus)
-                        {
-                            focusConfig.mode = Windows.Media.Devices.FocusMode.continuous;
-                        } else if (supportAutoFocus)
-                        {
-                            focusConfig.mode = Windows.Media.Devices.FocusMode.auto;
-                        }
-
-                        controller.focusControl.configure(focusConfig);
-                        controller.focusControl.focusAsync();
+        * Start preview/scanning using the device's default camera
+        */
+        function defaultCamera() {
+            reader.start().done(function (mediaCapture) {
+                capturePreview.src = URL.createObjectURL(mediaCapture);
+                capturePreview.play();
+                reader.scan().done(function (res) {
+                    capturePreview.pause();
+                    capturePreview.src = null;
+                    if (res) {
+                        success({ text: res && res.text, format: res && res.barcodeFormat, cancelled: !res });
+                        cancelPreview();
                     }
-                }
-
-                var deviceProps = controller.getAvailableMediaStreamProperties(Windows.Media.Capture.MediaStreamType.videoRecord);
-
-                deviceProps = Array.prototype.slice.call(deviceProps);
-                deviceProps = deviceProps.filter(function (prop) {
-                    // filter out streams with "unknown" subtype - causes errors on some devices
-                    return prop.subtype !== "Unknown";
-                }).sort(function (propA, propB) {
-                    // sort properties by resolution
-                    return propB.width - propA.width;
-                });
-
-                var maxResProps = deviceProps[0];
-
-                controller.setMediaStreamPropertiesAsync(Windows.Media.Capture.MediaStreamType.videoRecord, maxResProps).done(function () {
-                    // handle portrait orientation
-                    if (Windows.Graphics.Display.DisplayProperties.nativeOrientation == Windows.Graphics.Display.DisplayOrientations.portrait)
-                    {
-                        capture.setPreviewRotation(Windows.Media.Capture.VideoRotation.clockwise90Degrees);
-                        capturePreview.msZoom = true;
-                    }
-
-                    capturePreview.src = URL.createObjectURL(capture);
-                    capturePreview.play();
-
-                    // Insert preview frame and controls into page
-                    document.body.appendChild(capturePreview);
-                    document.body.appendChild(capturePreviewAlignmentMark);
-                    document.body.appendChild(captureCancelButton);
-                    document.body.appendChild(captureCameraButton);
-
-                    startBarcodeSearch(maxResProps.width, maxResProps.height);
                 });
             });
-
-        }
-
-        /**
-         * Starts barcode search process, implemented in WinRTBarcodeReader.winmd library
-         * Calls success callback, when barcode found.
-         */
-        function startBarcodeSearch(width, height) {
-
-            reader = new WinRTBarcodeReader.Reader();
-            reader.init(capture, width, height);
-            reader.readCode().done(function (result) {
-                if (!result) return; // if we got nothing back then we had canceled rather than found something
-                destroyPreview();
-                success({ text: result && result.text, format: result && result.barcodeFormat, cancelled: !result });
-            }, function (err) {
-                destroyPreview();
-                fail(err);
-            });
-        }
+        };
 
         /**
-         * Removes preview frame and corresponding objects from window
-         */
+        * Stops scanning/preview and destroys the preview UI
+        */
         function destroyPreview() {
+            // Cancel the capture process
+            cancelCapture = true;
 
+            // Stop displaying the video stream
             capturePreview.pause();
             capturePreview.src = null;
 
-            [capturePreview, capturePreviewAlignmentMark, captureCancelButton, captureCameraButton].forEach(function (elem) {
-                elem && document.body.removeChild(elem);
-            });
-
-            reader && reader.stop();
-            reader = null;
-
-            capture && capture.stopRecordAsync();
-            capture = null;
+            // Remove the preview controls from the document
+            document.body.removeChild(captureContainer);
         }
 
         /**
-         * Stops preview and then call success callback with cancelled=true
-         * See https://github.com/phonegap-build/BarcodeScanner#using-the-plugin
-         */
-        function cancelPreview() {
-            reader && reader.stop();
-        }
-
-        try
-        {
-            getCamera().then(function (camera) {
-                createPreview();
-                startPreview(camera);
-            },
-            function (error) {
-                fail(error);
+        * Cycles to the next available camera and resumes preview/scanning
+        */
+        function switchCamera() {
+            reader.switchCamera().done(function (mediaCapture) {
+                capturePreview.src = URL.createObjectURL(mediaCapture);
+                capturePreview.play();
+                reader.scan().done(function (res) {
+                    capturePreview.pause();
+                    capturePreview.src = null;
+                    if (res) {
+                        success({ text: res && res.text, format: res && res.barcodeFormat, cancelled: !res });
+                        cancelPreview();
+                    }
+                });
             });
-        } catch (ex)
-        {
+        };
+
+        try {
+            // Create reader control
+            reader = new BarcodeScanner.Reader();
+
+            // Add the preview UI
+            createPreview();
+
+            // Start scanning with the default camera
+            defaultCamera();
+        }
+        catch (ex) {
             fail(ex);
         }
     },
