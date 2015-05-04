@@ -294,7 +294,7 @@
             <DeviceCapability Name="webcam" />
         </config-file>
         <framework src="src/windows/lib/ZXing.winmd" custom="true" />
-        <framework src="src/windows/lib/WinRTBarcodeReader.winmd" custom="true" />
+        <framework src="src/windows/lib/BarcodeScanner.winmd" custom="true" />
     </platform>
 
     <platform name="windows">
@@ -313,7 +313,7 @@
         </config-file>
 
         <framework src="src/windows/lib/ZXing.winmd" custom="true" />
-        <framework src="src/windows/lib/WinRTBarcodeReader.winmd" custom="true" />
+        <framework src="src/windows/lib/BarcodeScanner.winmd" custom="true" />
     </platform>
 
     <!-- Windows Phone 8 -->
