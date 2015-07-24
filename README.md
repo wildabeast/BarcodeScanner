@@ -138,7 +138,7 @@ Windows Phone 8 implenemtation currently doesn't support encode functionality.
 So many -- check out the original [iOS](https://github.com/phonegap/phonegap-plugins/tree/DEPRECATED/iOS/BarcodeScanner) and [Android](https://github.com/phonegap/phonegap-plugins/tree/DEPRECATED/Android/BarcodeScanner) repos.
 
 
-## Licence ##
+## License ##
 
 The MIT License
 
