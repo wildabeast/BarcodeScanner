@@ -127,4 +127,4 @@ module.exports = {
         fail("Not implemented yet");
     }
 };
-require("cordova/windows8/commandProxy").add("BarcodeScanner", module.exports);
+require("cordova/exec/proxy").add("BarcodeScanner", module.exports);
