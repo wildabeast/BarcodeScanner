@@ -1035,7 +1035,11 @@ parentViewController:(UIViewController*)parentViewController
 
 - (UIInterfaceOrientation)preferredInterfaceOrientationForPresentation
 {
-    return UIInterfaceOrientationPortrait;
+    if ((self.orientationDelegate != nil) && [self.orientationDelegate respondsToSelector:@selector (preferredInterfaceOrientationForPresentation)])
+    {
+        return [self.orientationDelegate preferredInterfaceOrientationForPresentation];
+    }
+    return UIInterfaceOrientationLandscapeRight;
 }
 
 - (NSUInteger)supportedInterfaceOrientations
