@@ -36,7 +36,7 @@ module.exports = {
 
             // Create fullscreen preview
             capturePreview = document.createElement("video");
-            capturePreview.style.cssText = "position: absolute; left: 0; top: 0; width: 100%; height: 100%";
+            capturePreview.style.cssText = "position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: 99999";
 
             // Create cancel button
             captureCancelButton = document.createElement("button");
