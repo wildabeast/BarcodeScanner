@@ -7,36 +7,12 @@ Follows the [Cordova Plugin spec](http://cordova.apache.org/docs/en/3.0.0/plugin
 
 ### Supported Platforms
 
-- Android
 - iOS
 - Windows 8
 - Windows Phone 8
 
-Note: the Android source for this project includes an Android Library Project.
-plugman currently doesn't support Library Project refs, so its been
-prebuilt as a jar library. Any updates to the Library Project should be
-committed with an updated jar.
-
 ## Using the plugin ##
-The plugin creates the object `cordova/plugin/BarcodeScanner` with the method `scan(success, fail)`. 
-
-The following barcode types are currently supported:
-### Android
-
-* QR_CODE
-* DATA_MATRIX
-* UPC_E
-* UPC_A
-* EAN_8
-* EAN_13
-* CODE_128
-* CODE_39
-* CODE_93
-* CODABAR
-* ITF
-* RSS14
-* PDF417
-* RSS_EXPANDED
+The plugin creates the object `cordova/plugin/BarcodeScanner` with the method `scan(success, fail)`.
 
 ### iOS
 
@@ -96,7 +72,7 @@ A full example could be:
                 "Result: " + result.text + "\n" +
                 "Format: " + result.format + "\n" +
                 "Cancelled: " + result.cancelled);
-      }, 
+      },
       function (error) {
           alert("Scanning failed: " + error);
       }
@@ -105,7 +81,7 @@ A full example could be:
 
 ## Encoding a Barcode ##
 
-The plugin creates the object `cordova.plugins.barcodeScanner` with the method `encode(type, data, success, fail)`. 
+The plugin creates the object `cordova.plugins.barcodeScanner` with the method `encode(type, data, success, fail)`.
 
 Supported encoding types:
 
@@ -133,8 +109,7 @@ Windows Phone 8 implenemtation currently doesn't support encode functionality.
 
 ## Thanks on Github ##
 
-So many -- check out the original [iOS](https://github.com/phonegap/phonegap-plugins/tree/DEPRECATED/iOS/BarcodeScanner) and [Android](https://github.com/phonegap/phonegap-plugins/tree/DEPRECATED/Android/BarcodeScanner) repos.
-
+So many -- check out the original [iOS](https://github.com/phonegap/phonegap-plugins/tree/DEPRECATED/iOS/BarcodeScanner) and
 
 ## Licence ##
 

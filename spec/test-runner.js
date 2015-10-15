@@ -24,8 +24,7 @@ if (window.sessionStorage != null) {
 }
 
 // Timeout is 2 seconds to allow physical devices enough
-// time to query the response. This is important for some
-// Android devices.
+// time to query the response. 
 var Tests = function() {};
 Tests.TEST_TIMEOUT = 7500;
 
