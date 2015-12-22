@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?><plugin xmlns="http://www.phonegap.com/ns/plugins/1.0"
+    xmlns:rim="http://www.blackberry.com/ns/widgets"
     xmlns:android="http://schemas.android.com/apk/res/android"
     id="phonegap-plugin-barcodescanner"
     version="4.0.1">
