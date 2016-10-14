@@ -16,10 +16,6 @@
 
 package com.google.zxing.client.android;
 
-import android.content.pm.ActivityInfo;
-import android.content.res.Configuration;
-import android.hardware.Camera;
-import android.widget.Button;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.Result;
 import com.google.zxing.ResultMetadataType;
@@ -32,7 +28,6 @@ import com.google.zxing.client.android.result.ResultButtonListener;
 import com.google.zxing.client.android.result.ResultHandler;
 import com.google.zxing.client.android.result.ResultHandlerFactory;
 import com.google.zxing.client.android.result.supplement.SupplementalInfoRetriever;
-import com.google.zxing.client.android.share.BookmarkPickerActivity;
 import com.google.zxing.client.android.share.ShareActivity;
 
 import android.app.Activity;
@@ -115,7 +110,6 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
   private Result savedResultToShow;
   private ViewfinderView viewfinderView;
   private TextView statusView;
-  private Button flipButton;
   private View resultView;
   private Result lastResult;
   private boolean hasSurface;
@@ -140,14 +134,6 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
 
   CameraManager getCameraManager() {
     return cameraManager;
-  }
-
-  @Override
-  public void onConfigurationChanged(Configuration newConfig) {
-    super.onConfigurationChanged(newConfig);
-    // recreate is required for cases when no targetSdkVersion has been set in AndroidManifest.xml
-    // and the orientation has changed
-    recreate();
   }
 
   @Override

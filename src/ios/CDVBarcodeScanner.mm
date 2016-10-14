@@ -63,7 +63,6 @@
 @property (nonatomic, retain) AVCaptureSession*           captureSession;
 @property (nonatomic, retain) AVCaptureVideoPreviewLayer* previewLayer;
 @property (nonatomic, retain) NSString*                   alternateXib;
-@property (nonatomic, retain) NSMutableArray*             results;
 @property (nonatomic)         BOOL                        is1D;
 @property (nonatomic)         BOOL                        is2D;
 @property (nonatomic)         BOOL                        capturing;
@@ -163,6 +162,9 @@
                  parentViewController:self.viewController
                  alterateOverlayXib:overlayXib
                  ];
+    [processor retain];
+    [processor retain];
+    [processor retain];
     // queue [processor scanBarcode] to run on the event loop
     [processor performSelector:@selector(scanBarcode) withObject:nil afterDelay:0];
 }
@@ -245,7 +247,6 @@
 @synthesize is1D                 = _is1D;
 @synthesize is2D                 = _is2D;
 @synthesize capturing            = _capturing;
-@synthesize results              = _results;
 
 SystemSoundID _soundFileObject;
 
@@ -265,7 +266,6 @@ parentViewController:(UIViewController*)parentViewController
     self.is1D      = YES;
     self.is2D      = YES;
     self.capturing = NO;
-    self.results = [NSMutableArray new];
     
     CFURLRef soundFileURLRef  = CFBundleCopyResourceURL(CFBundleGetMainBundle(), CFSTR("CDVBarcodeScanner.bundle/beep"), CFSTR ("caf"), NULL);
     AudioServicesCreateSystemSoundID(soundFileURLRef, &_soundFileObject);
@@ -282,7 +282,6 @@ parentViewController:(UIViewController*)parentViewController
     self.captureSession = nil;
     self.previewLayer = nil;
     self.alternateXib = nil;
-    self.results = nil;
     
     self.capturing = NO;
     
@@ -328,37 +327,6 @@ parentViewController:(UIViewController*)parentViewController
     // viewcontroller holding onto a reference to us, release them so they
     // will release us
     self.viewController = nil;
-}
-
-//--------------------------------------------------------------------------
-- (BOOL)checkResult:(NSString *)result {
-    [self.results addObject:result];
-    
-    NSInteger treshold = 7;
-    
-    if (self.results.count > treshold) {
-        [self.results removeObjectAtIndex:0];
-    }
-    
-    if (self.results.count < treshold)
-    {
-        return NO;
-    }
-    
-    BOOL allEqual = YES;
-    NSString *compareString = [self.results objectAtIndex:0];
-    
-    for (NSString *aResult in self.results)
-    {
-        if (![compareString isEqualToString:aResult])
-        {
-            allEqual = NO;
-            //NSLog(@"Did not fit: %@",self.results);
-            break;
-        }
-    }
-    
-    return allEqual;
 }
 
 //--------------------------------------------------------------------------
@@ -527,11 +495,7 @@ parentViewController:(UIViewController*)parentViewController
         const char* cString      = resultText->getText().c_str();
         NSString*   resultString = [[NSString alloc] initWithCString:cString encoding:NSUTF8StringEncoding];
         
-        if ([self checkResult:resultString]) {
-            [self barcodeScanSucceeded:resultString format:format];
-        }
-        
-        
+        [self barcodeScanSucceeded:resultString format:format];
         
     }
     catch (zxing::ReaderException &rex) {
@@ -814,7 +778,7 @@ parentViewController:(UIViewController*)parentViewController
 //--------------------------------------------------------------------------
 - (void)dealloc {
     self.view = nil;
-    self.processor = nil;
+//    self.processor = nil;
     self.shutterPressed = NO;
     self.alternateXib = nil;
     self.overlayView = nil;
