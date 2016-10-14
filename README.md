@@ -1,197 +1,40 @@
-# PhoneGap Plugin BarcodeScanner
-================================
+How I generated this modified ZXING .jar file?
+------------------------------------------------
+Viewfinder (crop) area can be increased by changing the "MAX_FRAME_WIDTH" and "MAX_FRAME_HEIGHT" in "CameraManager.java" (lines 44 and 45). CameraManager.java can be found in:
 
-[![Build Status](https://travis-ci.org/phonegap/phonegap-plugin-barcodescanner.svg)](https://travis-ci.org/phonegap/phonegap-plugin-barcodescanner)
+yourproject/plugins/com.phonegap.plugins.barcodescanner/src/android/LibraryProject/src/com/google/zxing/client/android/camera/CameraManager.java
 
-**Note: This repository is no longer maintained. The official repository is now at [phonegap/phonegap-plugin-barcodescanner](http://github.com/phonegap/phonegap-plugin-barcodescanner).**
+After that you have to re-build the library project:
 
-Cross-platform BarcodeScanner for Cordova / PhoneGap.
+So assuming you have the Android SDK and tools (ie: ant) then what you need to do is go to the directory:
 
-Follows the [Cordova Plugin spec](http://cordova.apache.org/docs/en/5.0.0/plugin_ref_spec.md), so that it works with [Plugman](https://github.com/apache/cordova-plugman).
+yourpoject\plugins\com.phonegap.plugins.barcodescanner\src\android\LibraryProject
 
-## Installation
+you'll need to put a local.properties file in this folder, or make one, it only needs one line: sdk.dir=path/to/your/android/sdk
 
-    
-This requires phonegap 5.0+ ( current stable v3.0.0 )
+then assuming you have all the correct build tools and api packages (i did not, had to open my sdk manager and install build tools 19.1 and api 17) you would just need to run: ant release
 
-    phonegap plugin add phonegap-plugin-barcodescanner
+which will build the executable jar, which for me showed up as: yourpoject\plugins\com.phonegap.plugins.barcodescanner\src\android\LibraryProject\bin\classes.jar
 
-Older versions of phonegap can still install via the __deprecated__ id ( stale v2.0.1 )
+so rename it to: com.google.zxing.client.android.captureactivity.jar and put it under: yourpoject\plugins\com.phonegap.plugins.barcodescanner\src\android\
 
-    phonegap plugin add com.phonegap.plugins.barcodescanner
+also, to avoid removing/re-adding the platform (to redeploy the plugin) i also copied the file to: yourproject\platforms\android\libs\com.google.zxing.client.android.captureactivity.jar
 
-It is also possible to install via repo url directly ( unstable )
+then just built the project.
 
-    phonegap plugin add https://github.com/phonegap/phonegap-plugin-barcodescanner.git
 
-### Supported Platforms
+HOW TO USE?
+------------
+1. Grab pre-built com.google.zxing.client.android.captureactivity.jar file from dist directory & place it under 2 locations in your projects.
+    - yourpoject\plugins\com.phonegap.plugins.barcodescanner\src\android\
+    - yourproject\platforms\android\libs\
+2. Build your project and you should have barcode scanner with bigger viewfinder.
 
-- Android
-- iOS
-- Windows 8
-- Windows Phone 8
-- BlackBerry 10
-- Browser
 
-Note: the Android source for this project includes an Android Library Project.
-plugman currently doesn't support Library Project refs, so its been
-prebuilt as a jar library. Any updates to the Library Project should be
-committed with an updated jar.
+SOURCE 
+--------
 
-## Using the plugin ##
-The plugin creates the object `cordova/plugin/BarcodeScanner` with the method `scan(success, fail)`. 
-
-The following barcode types are currently supported:
-### Android
-
-* QR_CODE
-* DATA_MATRIX
-* UPC_E
-* UPC_A
-* EAN_8
-* EAN_13
-* CODE_128
-* CODE_39
-* CODE_93
-* CODABAR
-* ITF
-* RSS14
-* PDF417
-* RSS_EXPANDED
-
-### iOS
-
-* QR_CODE
-* DATA_MATRIX
-* UPC_E
-* UPC_A
-* EAN_8
-* EAN_13
-* CODE_128
-* CODE_39
-* ITF
-
-### Windows8
-
-* UPC_A
-* UPC_E
-* EAN_8
-* EAN_13
-* CODE_39
-* CODE_93
-* CODE_128
-* ITF
-* CODABAR
-* MSI
-* RSS14
-* QR_CODE
-* DATA_MATRIX
-* AZTEC
-* PDF417
-
-### Windows Phone 8
-
-* UPC_A
-* UPC_E
-* EAN_8
-* EAN_13
-* CODE_39
-* CODE_93
-* CODE_128
-* ITF
-* CODABAR
-* MSI
-* RSS14
-* QR_CODE
-* DATA_MATRIX
-* AZTEC
-* PDF417
-
-### BlackBerry 10
-* UPC_A
-* UPC_E
-* EAN_8
-* EAN_13
-* CODE_39
-* CODE_128
-* ITF
-* DATA_MATRIX
-* AZTEC
-
-`success` and `fail` are callback functions. Success is passed an object with data, type and cancelled properties. Data is the text representation of the barcode data, type is the type of barcode detected and cancelled is whether or not the user cancelled the scan.
-
-A full example could be:
-```
-   cordova.plugins.barcodeScanner.scan(
-      function (result) {
-          alert("We got a barcode\n" +
-                "Result: " + result.text + "\n" +
-                "Format: " + result.format + "\n" +
-                "Cancelled: " + result.cancelled);
-      }, 
-      function (error) {
-          alert("Scanning failed: " + error);
-      }
-   );
-```
-
-## Encoding a Barcode ##
-
-The plugin creates the object `cordova.plugins.barcodeScanner` with the method `encode(type, data, success, fail)`. 
-
-Supported encoding types:
-
-* TEXT_TYPE
-* EMAIL_TYPE
-* PHONE_TYPE
-* SMS_TYPE
-
-```
-A full example could be:
-
-   cordova.plugins.barcodeScanner.encode(cordova.plugins.barcodeScanner.Encode.TEXT_TYPE, "http://www.nytimes.com", function(success) {
-            alert("encode success: " + success);
-          }, function(fail) {
-            alert("encoding failed: " + fail);
-          }
-        );
-```
-
-## Windows8 quirks ##
-Windows 8 implementation currently doesn't support encode functionality.
-
-## Windows Phone 8 quirks ##
-Windows Phone 8 implementation currently doesn't support encode functionality.
-
-## BlackBerry 10 quirks
-BlackBerry 10 implementation currently doesn't support encode functionality.
-Cancelling a scan on BlackBerry 10 is done by touching the screen.
-
-## Thanks on Github ##
-
-So many -- check out the original [iOS](https://github.com/phonegap/phonegap-plugins/tree/DEPRECATED/iOS/BarcodeScanner),  [Android](https://github.com/phonegap/phonegap-plugins/tree/DEPRECATED/Android/BarcodeScanner) and 
-[BlackBerry 10](https://github.com/blackberry/WebWorks-Community-APIs/tree/master/BB10-Cordova/BarcodeScanner) repos.
-
-## Licence ##
-
-The MIT License
-
-Copyright (c) 2010 Matt Kane
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
+Thanks to Original ZXING Project 
+      https://github.com/zxing/zxing
+and also barcode scanner plugin for cordova (Source of my project)
+      https://github.com/wildabeast/BarcodeScanner/#using-the-plugin
