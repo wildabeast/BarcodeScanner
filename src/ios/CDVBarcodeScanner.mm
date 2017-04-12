@@ -8,7 +8,7 @@
 
 #import <AVFoundation/AVFoundation.h>
 #import <AssetsLibrary/AssetsLibrary.h>
-
+#import "CDCoverView.h"
 //------------------------------------------------------------------------------
 // use the all-in-one version of zxing that we built
 //------------------------------------------------------------------------------
@@ -968,6 +968,12 @@ parentViewController:(UIViewController*)parentViewController
     overlayView.autoresizingMask    = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     overlayView.opaque              = NO;
 
+    CDCoverView *coverView = [[CDCoverView alloc]init];
+        coverView.frame = overlayView.bounds;
+        coverView.backgroundColor = [UIColor clearColor];
+        coverView.opaque = NO;
+        [overlayView addSubview:coverView];
+
     UIToolbar* toolbar = [[UIToolbar alloc] init];
     toolbar.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleTopMargin;
 
@@ -1068,15 +1074,16 @@ parentViewController:(UIViewController*)parentViewController
 
     [overlayView addSubview: reticleView];
 
+
     return overlayView;
 }
 
 //--------------------------------------------------------------------------
 
 #define RETICLE_SIZE    500.0f
-#define RETICLE_WIDTH    10.0f
+#define RETICLE_WIDTH    2.0f
 #define RETICLE_OFFSET   60.0f
-#define RETICLE_ALPHA     0.4f
+#define RETICLE_ALPHA     1.0f
 
 //-------------------------------------------------------------------------
 // builds the green box and red line
@@ -1098,7 +1105,7 @@ parentViewController:(UIViewController*)parentViewController
     }
 
     if (self.processor.is2D) {
-        UIColor* color = [UIColor colorWithRed:0.0 green:1.0 blue:0.0 alpha:RETICLE_ALPHA];
+        UIColor* color = [ [UIColor whiteColor] colorWithAlphaComponent:RETICLE_ALPHA];
         CGContextSetStrokeColorWithColor(context, color.CGColor);
         CGContextSetLineWidth(context, RETICLE_WIDTH);
         CGContextStrokeRect(context,
