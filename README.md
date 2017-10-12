@@ -42,81 +42,25 @@ committed with an updated jar.
 The plugin creates the object `cordova/plugin/BarcodeScanner` with the method `scan(success, fail)`. 
 
 The following barcode types are currently supported:
-### Android
 
-* QR_CODE
-* DATA_MATRIX
-* UPC_E
-* UPC_A
-* EAN_8
-* EAN_13
-* CODE_128
-* CODE_39
-* CODE_93
-* CODABAR
-* ITF
-* RSS14
-* PDF417
-* RSS_EXPANDED
-
-### iOS
-
-* QR_CODE
-* DATA_MATRIX
-* UPC_E
-* UPC_A
-* EAN_8
-* EAN_13
-* CODE_128
-* CODE_39
-* ITF
-
-### Windows8
-
-* UPC_A
-* UPC_E
-* EAN_8
-* EAN_13
-* CODE_39
-* CODE_93
-* CODE_128
-* ITF
-* CODABAR
-* MSI
-* RSS14
-* QR_CODE
-* DATA_MATRIX
-* AZTEC
-* PDF417
-
-### Windows Phone 8
-
-* UPC_A
-* UPC_E
-* EAN_8
-* EAN_13
-* CODE_39
-* CODE_93
-* CODE_128
-* ITF
-* CODABAR
-* MSI
-* RSS14
-* QR_CODE
-* DATA_MATRIX
-* AZTEC
-* PDF417
-
-### BlackBerry 10
-* UPC_A
-* UPC_E
-* EAN_8
-* EAN_13
-* CODE_39
-* CODE_128
-* ITF
-* DATA_MATRIX
-* AZTEC
+|  Barcode Type | Android | iOS | Windows8 | Windows Phone 8 | BlackBerry 10 |
+|---------------|:-------:|:---:|:--------:|:---------------:|:-------------:|
+| QR_CODE       |    ✔    |  ✔  |     ✔    |        ✔        |       ✖       |
+| DATA_MATRIX   |    ✔    |  ✔  |     ✔    |        ✔        |       ✔       |
+| UPC_A         |    ✔    |  ✔  |     ✔    |        ✔        |       ✔       |
+| UPC_E         |    ✔    |  ✔  |     ✔    |        ✔        |       ✔       |
+| EAN_8         |    ✔    |  ✔  |     ✔    |        ✔        |       ✔       |
+| EAN_13        |    ✔    |  ✔  |     ✔    |        ✔        |       ✔       |
+| CODE_39       |    ✔    |  ✔  |     ✔    |        ✔        |       ✔       |
+| CODE_93       |    ✔    |  ✖  |     ✔    |        ✔        |       ✖       |
+| CODE_128      |    ✔    |  ✔  |     ✔    |        ✔        |       ✔       |
+| CODABAR       |    ✔    |  ✖  |     ✔    |        ✔        |       ✖       |
+| ITF           |    ✔    |  ✔  |     ✔    |        ✔        |       ✔       |
+| RSS14         |    ✔    |  ✖  |     ✔    |        ✔        |       ✖       |
+| PDF417        |    ✔    |  ✖  |     ✔    |        ✔        |       ✖       |
+| RSS_EXPANDED  |    ✔    |  ✖  |     ✖    |        ✖        |       ✖       |
+| MSI           |    ✖    |  ✖  |     ✔    |        ✔        |       ✖       |
+| AZTEC         |    ✖    |  ✖  |     ✔    |        ✔        |       ✔       |
 
 `success` and `fail` are callback functions. Success is passed an object with data, type and cancelled properties. Data is the text representation of the barcode data, type is the type of barcode detected and cancelled is whether or not the user cancelled the scan.
 
